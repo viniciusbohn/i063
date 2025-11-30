@@ -269,6 +269,62 @@ def load_geojson_mg():
 
     return None
 
+
+@st.cache_data(ttl=3600)  # Cache por 1 hora (dados raramente mudam)
+def load_municipios_com_coordenadas():
+    """
+    Carrega dados de municípios de MG com latitude e longitude de fonte pública.
+    """
+    try:
+        # Fonte: repositório kelvins/municipios-brasileiros no GitHub
+        url_municipios = "https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/municipios.csv"
+        df_municipios = pd.read_csv(url_municipios)
+        
+        # Filtra apenas Minas Gerais (código UF = 31)
+        df_mg = df_municipios[df_municipios['codigo_uf'] == 31].copy()
+        
+        # Renomeia colunas para compatibilidade
+        if 'codigo_ibge' not in df_mg.columns:
+            if 'codigo' in df_mg.columns:
+                df_mg['codigo_ibge'] = df_mg['codigo']
+        
+        # Garante que código IBGE existe
+        if 'codigo_ibge' not in df_mg.columns:
+            if 'codigo' in df_mg.columns:
+                df_mg['codigo_ibge'] = df_mg['codigo']
+            else:
+                raise ValueError("Coluna 'codigo_ibge' ou 'codigo' não encontrada")
+        
+        # Garante que nome existe
+        if 'nome' not in df_mg.columns:
+            if 'nome_municipio' in df_mg.columns:
+                df_mg['nome'] = df_mg['nome_municipio']
+            else:
+                raise ValueError("Coluna 'nome' não encontrada")
+        
+        # Verifica e adiciona coordenadas se necessário
+        if 'latitude' not in df_mg.columns or 'longitude' not in df_mg.columns:
+            # Usa coordenadas padrão do centro de MG se não disponíveis
+            if 'latitude' not in df_mg.columns:
+                df_mg['latitude'] = -18.5122
+            if 'longitude' not in df_mg.columns:
+                df_mg['longitude'] = -44.5550
+        
+        # Seleciona apenas as colunas necessárias
+        colunas_finais = ['codigo_ibge', 'nome', 'latitude', 'longitude']
+        df_mg = df_mg[colunas_finais].copy()
+        
+        # Normaliza código IBGE
+        if 'codigo_ibge' in df_mg.columns:
+            df_mg['codigo_ibge'] = normalize_codigo_ibge(df_mg['codigo_ibge'])
+        
+        return df_mg
+    
+    except Exception as e:
+        st.warning(f"⚠️ Não foi possível carregar coordenadas de municípios da fonte remota: {str(e)}")
+        # Retorna DataFrame vazio se não conseguir carregar
+        return pd.DataFrame(columns=['codigo_ibge', 'nome', 'latitude', 'longitude'])
+
 def create_overview_metrics(df):
     """
     Cria métricas principais do dashboard em formato de cards
@@ -555,17 +611,10 @@ def create_interactive_map(df):
     
     try:
         # Carrega dados de municípios com coordenadas
-        @st.cache_data
-        def load_municipios_data():
-            try:
-                return pd.read_csv('municipios_mg_completo_20251105_161017.csv')
-            except:
-                return None
+        df_municipios = load_municipios_com_coordenadas()
         
-        df_municipios = load_municipios_data()
-        
-        if df_municipios is None:
-            st.error("❌ Não foi possível carregar os dados de municípios. Verifique se o arquivo 'municipios_mg_completo_20251105_161017.csv' existe.")
+        if df_municipios.empty:
+            st.error("❌ Não foi possível carregar os dados de municípios.")
             return
         
         # Prepara dados da planilha
@@ -574,12 +623,18 @@ def create_interactive_map(df):
         df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
         df_map[coluna_qtd_startups] = pd.to_numeric(df_map[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
         
-        # Prepara dados de municípios
-        df_municipios['codigo_ibge'] = normalize_codigo_ibge(df_municipios['codigo_ibge'])
+        # Seleciona apenas colunas disponíveis para o merge
+        colunas_merge = ['codigo_ibge']
+        if 'nome' in df_municipios.columns:
+            colunas_merge.append('nome')
+        if 'latitude' in df_municipios.columns:
+            colunas_merge.append('latitude')
+        if 'longitude' in df_municipios.columns:
+            colunas_merge.append('longitude')
         
         # Faz merge usando código IBGE
         df_merged = df_map.merge(
-            df_municipios[['codigo_ibge', 'latitude', 'longitude', 'nome']],
+            df_municipios[colunas_merge],
             on='codigo_ibge',
             how='inner'
         )
@@ -767,14 +822,24 @@ def create_choropleth_map(df, df_atores=None):
         df_map[coluna_qtd_fundos_e_investidores] = pd.to_numeric(df_map[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0).astype(int)
 
     # Base de municípios com latitude/longitude (para coordenadas se necessário)
-    df_municipios = pd.read_csv('municipios_mg_completo_20251105_161017.csv')[
-        ['codigo_ibge', 'nome', 'latitude', 'longitude']
-    ].copy()
-    df_municipios['codigo_ibge'] = normalize_codigo_ibge(df_municipios['codigo_ibge'])
+    df_municipios = load_municipios_com_coordenadas()
+    
+    if df_municipios.empty:
+        st.warning("⚠️ Não foi possível carregar dados de coordenadas dos municípios. O mapa pode não funcionar corretamente.")
+        return
+
+    # Seleciona apenas colunas disponíveis para o merge
+    colunas_merge = ['codigo_ibge']
+    if 'nome' in df_municipios.columns:
+        colunas_merge.append('nome')
+    if 'latitude' in df_municipios.columns:
+        colunas_merge.append('latitude')
+    if 'longitude' in df_municipios.columns:
+        colunas_merge.append('longitude')
 
     # Combina dados da planilha com dados de municípios usando código IBGE
     df_regions = df_map.merge(
-        df_municipios[['codigo_ibge', 'nome', 'latitude', 'longitude']],
+        df_municipios[colunas_merge],
         on='codigo_ibge',
         how='left'
     )
