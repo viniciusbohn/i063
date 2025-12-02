@@ -2129,19 +2129,6 @@ def main():
     Função principal do dashboard
     """
     
-    # Adiciona botões de controle no topo da página
-    col1, col2, col3 = st.columns([1, 1, 10])
-    with col1:
-        if st.button("🔄 Limpar Cache", help="Força o reload dos dados da planilha", use_container_width=True):
-            st.cache_data.clear()
-            st.success("Cache limpo! Recarregando...")
-            st.rerun()
-    
-    with col2:
-        if st.button("📊 Debug", help="Mostra informações sobre os dados carregados", use_container_width=True):
-            st.session_state.show_debug = not st.session_state.get('show_debug', False)
-            st.rerun()
-    
     # Carrega dados do mapa (aba "Municípios e Regiões")
     with st.spinner("Carregando dados do mapa..."):
         df_mapa = load_data_municipios_regioes(force_reload=False)
@@ -2149,25 +2136,6 @@ def main():
     # Carrega dados da tabela (aba "Base | Atores MG")
     with st.spinner("Carregando dados das startups..."):
         df_startups = load_data_base_atores(force_reload=False)
-    
-    # Mostra informações de debug se solicitado
-    if st.session_state.get('show_debug', False):
-        st.info("🔍 **Informações de Debug:**")
-        col_debug1, col_debug2 = st.columns(2)
-        with col_debug1:
-            st.write(f"**Dados do Mapa:** {len(df_mapa)} linhas")
-            if not df_mapa.empty:
-                st.write(f"Colunas: {', '.join(df_mapa.columns[:5].tolist())}...")
-        with col_debug2:
-            st.write(f"**Dados da Tabela:** {len(df_startups)} linhas")
-            if not df_startups.empty:
-                st.write(f"Colunas: {', '.join(df_startups.columns[:5].tolist())}...")
-                # Mostra primeiras linhas da primeira coluna
-                primeira_col = df_startups.columns[0]
-                st.write(f"Primeira coluna: **{primeira_col}**")
-                valores_unicos = df_startups[primeira_col].dropna().unique()[:5]
-                st.write(f"Primeiros valores: {list(valores_unicos)}")
-        st.markdown("---")
     
     if df_mapa.empty:
         st.error("Não foi possível carregar os dados do mapa.")
@@ -2199,46 +2167,16 @@ def main():
     
     # Campo de pesquisa acima da tabela
     if not df_startups_filtered.empty:
-        # Opção para ignorar filtros do mapa
-        st.subheader("📋 Tabela de Dados")
+        # Aplica os mesmos filtros do mapa aos dados das startups
+        df_startups_para_tabela = df_startups_filtered.copy()
         
-        # Contador de dados antes dos filtros
-        total_antes_filtros = len(df_startups_filtered)
+        # Obtém os valores dos filtros do session_state (definidos no mapa)
+        regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
+        municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
+        categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
         
-        # Checkbox para ignorar filtros do mapa
-        ignorar_filtros = st.checkbox(
-            "🔓 Mostrar TODOS os dados (ignorar filtros do mapa)",
-            value=False,
-            help="Marque esta opção para ver todos os dados, independente dos filtros aplicados no mapa"
-        )
-        
-        # Aplica os mesmos filtros do mapa aos dados das startups (se não estiver ignorando)
-        if ignorar_filtros:
-            df_startups_para_tabela = df_startups_filtered.copy()
-            # Mostra aviso
-            st.info(f"📊 Mostrando **TODOS** os {len(df_startups_para_tabela)} registros (filtros do mapa ignorados)")
-        else:
-            df_startups_para_tabela = df_startups_filtered.copy()
-            
-            # Obtém os valores dos filtros do session_state (definidos no mapa)
-            regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
-            municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
-            categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
-            
-            # Conta quantos filtros estão ativos
-            filtros_ativos = []
-            if regiao_filtro_tabela != "Todas":
-                filtros_ativos.append(f"Região: {regiao_filtro_tabela}")
-            if municipio_filtro_tabela != "Todos":
-                filtros_ativos.append(f"Município: {municipio_filtro_tabela}")
-            if categorias_filtro_tabela:
-                filtros_ativos.append(f"Categorias: {', '.join(categorias_filtro_tabela)}")
-            
-            if filtros_ativos:
-                st.warning(f"⚠️ **Filtros ativos do mapa:** {', '.join(filtros_ativos)}. Use a opção acima para ver todos os dados.")
-        
-            # Aplica filtro de região (apenas se não estiver ignorando filtros)
-            if not ignorar_filtros and regiao_filtro_tabela != "Todas":
+        # Aplica filtro de região
+        if regiao_filtro_tabela != "Todas":
                 # Procura coluna de região nas startups (com várias variações)
                 coluna_regiao_startups = None
                 possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
@@ -2250,16 +2188,12 @@ def main():
                         break
                 
                 if coluna_regiao_startups:
-                    antes = len(df_startups_para_tabela)
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
                     ]
-                    depois = len(df_startups_para_tabela)
-                    if st.session_state.get('show_debug', False):
-                        st.write(f"🔍 Filtro região: {antes} → {depois} linhas")
-            
-            # Aplica filtro de município (apenas se não estiver ignorando filtros)
-            if not ignorar_filtros and municipio_filtro_tabela != "Todos":
+        
+        # Aplica filtro de município
+        if municipio_filtro_tabela != "Todos":
                 # Procura coluna de município/cidade nas startups
                 coluna_municipio_startups = None
                 possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
@@ -2270,16 +2204,12 @@ def main():
                         break
                 
                 if coluna_municipio_startups:
-                    antes = len(df_startups_para_tabela)
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
                     ]
-                    depois = len(df_startups_para_tabela)
-                    if st.session_state.get('show_debug', False):
-                        st.write(f"🔍 Filtro município: {antes} → {depois} linhas")
-            
-            # Aplica filtro de categoria (apenas se não estiver ignorando filtros)
-            if not ignorar_filtros and categorias_filtro_tabela:
+        
+        # Aplica filtro de categoria
+        if categorias_filtro_tabela:
                 # Procura coluna de categoria nas startups
                 coluna_categoria_startups = None
                 possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
@@ -2307,23 +2237,11 @@ def main():
                     # Remove duplicatas mantendo a ordem
                     categorias_mapeadas = list(dict.fromkeys(categorias_mapeadas))
                     
-                    antes = len(df_startups_para_tabela)
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().isin(
                             [str(cat).strip() for cat in categorias_mapeadas]
                         )
                     ]
-                    depois = len(df_startups_para_tabela)
-                    if st.session_state.get('show_debug', False):
-                        st.write(f"🔍 Filtro categoria: {antes} → {depois} linhas")
-                        st.write(f"🔍 Categorias mapeadas: {categorias_mapeadas}")
-            
-            # Mostra contador de dados após filtros
-            total_apos_filtros = len(df_startups_para_tabela)
-            if total_antes_filtros != total_apos_filtros:
-                st.caption(f"📊 Mostrando {total_apos_filtros} de {total_antes_filtros} registros (filtros aplicados)")
-            else:
-                st.caption(f"📊 Mostrando todos os {total_apos_filtros} registros")
         
         # Campo de pesquisa (fora do bloco if/else para funcionar em ambos os casos)
         texto_pesquisa = st.text_input(
