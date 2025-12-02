@@ -102,27 +102,57 @@ def normalize_codigo_ibge(series: pd.Series) -> pd.Series:
 # CSS personalizado
 st.markdown("""
 <style>
-    .metric-card {
-        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        color: white;
-        text-align: center;
-        margin: 0.5rem 0;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        height: 140px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
+    /* Estiliza botões de cards - aplica a todos os botões secondary nas colunas dos cards */
+    div[data-testid="column"] button[kind="secondary"] {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+        padding: 1.5rem !important;
+        border-radius: 15px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px) !important;
+        color: white !important;
+        text-align: center !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease !important;
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        cursor: pointer !important;
+        white-space: pre-line !important;
+        font-size: inherit !important;
+        box-sizing: border-box !important;
     }
     
-    .metric-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    div[data-testid="column"] button[kind="secondary"]:hover:not(:disabled) {
+        transform: translateY(-5px) !important;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    div[data-testid="column"] button[kind="secondary"]:disabled {
+        opacity: 0.4 !important;
+        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
+        cursor: not-allowed !important;
+    }
+    
+    div[data-testid="column"] button[kind="secondary"]:disabled:hover {
+        opacity: 0.6 !important;
+    }
+    
+    .metric-card-label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-card-value {
+        font-size: 2.2rem;
+        font-weight: bold;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        line-height: 1.2;
     }
     
     .metric-value {
@@ -875,8 +905,10 @@ def create_choropleth_map(df, df_atores=None):
     categorias_selecionadas = []
     categorias_disponiveis = []
     
-    # Processa seleção do mapa ANTES de criar os widgets (para evitar erro de modificação do session_state)
+    # IMPORTANTE: Processa seleção do mapa ANTES de criar os widgets
+    # Esta seleção foi armazenada na renderização anterior quando o usuário clicou
     # Verifica se há uma seleção pendente do mapa e se é diferente da última processada
+    # Esta seleção foi armazenada na renderização anterior quando o usuário clicou no mapa
     if "mapa_selecao_pendente" in st.session_state and st.session_state.mapa_selecao_pendente:
         selecao = st.session_state.mapa_selecao_pendente
         
@@ -897,23 +929,17 @@ def create_choropleth_map(df, df_atores=None):
                     regiao_clicada = point['customdata'][0]
                     municipio_clicado = point['customdata'][1]
                     
-                    # Obtém o estado atual dos filtros
-                    regiao_atual = st.session_state.get("filtro_regiao", "Todas")
-                    
-                    # Se não há região filtrada (ou é "Todas"), filtra por região
-                    if regiao_atual == "Todas":
-                        st.session_state.filtro_regiao = regiao_clicada
-                        st.session_state.filtro_municipio = "Todos"  # Reseta município
-                    # Se já há região filtrada, filtra por município
-                    else:
-                        st.session_state.filtro_municipio = municipio_clicado
+                    # Ao clicar no mapa, sempre filtra diretamente pelo município
+                    # Também atualiza a região para garantir que o dropdown de município mostre os municípios corretos
+                    st.session_state.filtro_regiao = regiao_clicada
+                    st.session_state.filtro_municipio = municipio_clicado
                     
                     # Marca esta seleção como processada
                     st.session_state.ultima_selecao_processada = selecao_hash
                     # Limpa a seleção pendente para evitar reprocessamento
                     st.session_state.mapa_selecao_pendente = None
-                    # Força rerun para aplicar os filtros imediatamente
-                    st.rerun()
+                    # O on_select="rerun" já fez rerun na renderização anterior quando o usuário clicou
+                    # Esta renderização já está aplicando os filtros atualizados, então não precisa fazer rerun novamente
     
     # Cria layout com filtros à esquerda e mapa à direita
     col_filters, col_map = st.columns([0.35, 0.65])
@@ -949,6 +975,27 @@ def create_choropleth_map(df, df_atores=None):
                 categorias_base.append("Órgãos Públicos e Apoio")
             categorias_disponiveis = categorias_base
         
+        # Inicializa estado das categorias ativas (todas ativas por padrão, exceto Hubs que não tem dados)
+        if "categorias_ativas" not in st.session_state:
+            st.session_state.categorias_ativas = {
+                "Startup": True,
+                "Empresa Âncora": True,
+                "Fundos e Investidores": True,
+                "Universidades e ICTs": True,
+                "Órgãos Públicos e Apoio": True,
+                "Hubs, Incubadoras e Parques Tecnológicos": False  # Sempre desativado (sem dados)
+            }
+        
+        # Mapeia nomes dos cards para nomes das categorias no filtro
+        card_to_category = {
+            "Startups": "Startup",
+            "Grandes Empresas Âncoras": "Empresa Âncora",
+            "Fundos e Investidores": "Fundos e Investidores",
+            "Universidades e ICTs": "Universidades e ICTs",
+            "Órgãos Públicos e Apoio": "Órgãos Públicos e Apoio",
+            "Hubs, Incubadoras e Parques Tecnológicos": "Hubs, Incubadoras e Parques Tecnológicos"
+        }
+        
         # Cabeçalho com título e botão de reset
         col_title, col_reset = st.columns([3, 1])
         with col_title:
@@ -959,7 +1006,13 @@ def create_choropleth_map(df, df_atores=None):
                 # Define explicitamente os valores padrão no session_state
                 st.session_state.filtro_regiao = "Todas"
                 st.session_state.filtro_municipio = "Todos"
-                st.session_state.filtro_categoria = categorias_disponiveis.copy() if categorias_disponiveis else []
+                # Reseta todas as categorias para ativas (exceto Hubs)
+                for cat in st.session_state.categorias_ativas:
+                    if cat != "Hubs, Incubadoras e Parques Tecnológicos":
+                        st.session_state.categorias_ativas[cat] = True
+                categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
+                                          if ativa and cat in categorias_disponiveis]
+                st.session_state.filtro_categoria = categorias_ativas_list
                 st.rerun()
         
         # Filtro de Região
@@ -1004,16 +1057,65 @@ def create_choropleth_map(df, df_atores=None):
             key="filtro_municipio"
         )
         
+        # Processa cliques nos cards ANTES de criar o multiselect (para evitar erro de modificação do session_state)
+        # Mapeia nomes dos cards para nomes das categorias no filtro
+        card_to_category = {
+            "Startups": "Startup",
+            "Grandes Empresas Âncoras": "Empresa Âncora",
+            "Fundos e Investidores": "Fundos e Investidores",
+            "Universidades e ICTs": "Universidades e ICTs",
+            "Órgãos Públicos e Apoio": "Órgãos Públicos e Apoio",
+            "Hubs, Incubadoras e Parques Tecnológicos": "Hubs, Incubadoras e Parques Tecnológicos"
+        }
+        
+        # Processa cliques nos cards (verifica flags de botões clicados)
+        for card_name, category_name in card_to_category.items():
+            if category_name == "Hubs, Incubadoras e Parques Tecnológicos":
+                continue  # Pula Hubs (não tem dados)
+            
+            click_flag_key = f"card_clicked_{category_name}"
+            # Verifica se o card foi clicado (flag foi setada na renderização anterior)
+            if click_flag_key in st.session_state and st.session_state[click_flag_key]:
+                # Alterna o estado da categoria
+                if category_name in st.session_state.categorias_ativas:
+                    st.session_state.categorias_ativas[category_name] = not st.session_state.categorias_ativas[category_name]
+                    # Limpa a flag
+                    st.session_state[click_flag_key] = False
+                    # Atualiza o filtro de categorias ANTES de criar o multiselect
+                    categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
+                                              if ativa and cat in categorias_disponiveis]
+                    st.session_state.filtro_categoria = categorias_ativas_list
+                    st.rerun()
+        
         # Filtro de Categoria do Ator (seleção múltipla)
-        # Define default como todas as categorias disponíveis apenas se ainda não estiver definido
+        # Sincroniza com o estado das categorias ativas dos cards
+        categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
+                                  if ativa and cat in categorias_disponiveis]
+        
+        # Inicializa o filtro baseado nas categorias ativas
         if "filtro_categoria" not in st.session_state:
-            st.session_state.filtro_categoria = categorias_disponiveis.copy() if categorias_disponiveis else []
+            st.session_state.filtro_categoria = categorias_ativas_list.copy()
+        else:
+            # Sincroniza: se o usuário mudou manualmente no multiselect, atualiza o estado dos cards
+            for cat in categorias_disponiveis:
+                if cat in st.session_state.categorias_ativas:
+                    is_in_filter = cat in st.session_state.filtro_categoria
+                    if st.session_state.categorias_ativas[cat] != is_in_filter:
+                        st.session_state.categorias_ativas[cat] = is_in_filter
         
         categorias_selecionadas = st.multiselect(
             "Categoria do Ator",
             options=categorias_disponiveis,
+            default=categorias_ativas_list,
             key="filtro_categoria"
         )
+        
+        # Sincroniza estado dos cards com mudanças no multiselect
+        for cat in categorias_disponiveis:
+            if cat in st.session_state.categorias_ativas:
+                is_in_filter = cat in categorias_selecionadas
+                if st.session_state.categorias_ativas[cat] != is_in_filter:
+                    st.session_state.categorias_ativas[cat] = is_in_filter
         
         # Aplica filtros aos dados
         df_regions_filtrado = df_regions.copy()
@@ -1102,53 +1204,50 @@ def create_choropleth_map(df, df_atores=None):
         # Outras categorias - por enquanto ficam zeradas (serão implementadas depois)
         contadores["Hubs, Incubadoras e Parques Tecnológicos"] = 0
         
-        # Cria cards em grid 3x2
+        # Cria cards em grid 3x2 (clicáveis)
         col1, col2, col3 = st.columns(3)
         
-        with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Startups</div>
-                <div class="metric-value">{contadores.get("Startups", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # Função auxiliar para renderizar card clicável
+        def render_clickable_card(card_name, category_name, value):
+            is_active = st.session_state.categorias_ativas.get(category_name, True)
+            disabled_class = " disabled" if not is_active else ""
+            button_key = f"card_btn_{category_name}"
+            click_flag_key = f"card_clicked_{category_name}"
             
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Hubs, Incubadoras e Parques Tecnológicos</div>
-                <div class="metric-value">{contadores.get("Hubs, Incubadoras e Parques Tecnológicos", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Inicializa o flag de clique se não existir
+            if click_flag_key not in st.session_state:
+                st.session_state[click_flag_key] = False
+            
+            # Cria o botão estilizado como card
+            # O CSS customizado aplicará os estilos baseado na key do botão
+            button_label = f"{card_name}\n\n{value:,}"
+            
+            # Usa st.button com CSS customizado para fazer parecer um card
+            # O CSS aplica estilos baseado no data-testid que o Streamlit gera
+            button_clicked = st.button(button_label, key=button_key, use_container_width=True, type="secondary", disabled=not is_active)
+            
+            if button_clicked:
+                # Marca que o botão foi clicado (será processado na próxima renderização, antes do multiselect)
+                st.session_state[click_flag_key] = True
+                st.rerun()
+        
+        with col1:
+            render_clickable_card("Startups", "Startup", contadores.get("Startups", 0))
+            render_clickable_card("Hubs, Incubadoras e Parques Tecnológicos", 
+                                 "Hubs, Incubadoras e Parques Tecnológicos", 
+                                 contadores.get("Hubs, Incubadoras e Parques Tecnológicos", 0))
         
         with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Universidades e ICTs</div>
-                <div class="metric-value">{contadores.get("Universidades e ICTs", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Grandes Empresas Âncoras</div>
-                <div class="metric-value">{contadores.get("Grandes Empresas Âncoras", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            render_clickable_card("Universidades e ICTs", "Universidades e ICTs", 
+                                contadores.get("Universidades e ICTs", 0))
+            render_clickable_card("Grandes Empresas Âncoras", "Empresa Âncora", 
+                                contadores.get("Grandes Empresas Âncoras", 0))
         
         with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Fundos e Investidores</div>
-                <div class="metric-value">{contadores.get("Fundos e Investidores", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-label">Órgãos Públicos e Apoio</div>
-                <div class="metric-value">{contadores.get("Órgãos Públicos e Apoio", 0):,}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            render_clickable_card("Fundos e Investidores", "Fundos e Investidores", 
+                                contadores.get("Fundos e Investidores", 0))
+            render_clickable_card("Órgãos Públicos e Apoio", "Órgãos Públicos e Apoio", 
+                                contadores.get("Órgãos Públicos e Apoio", 0))
     
     # Atualiza df_regions com os dados filtrados
     df_regions = df_regions_filtrado
@@ -1411,20 +1510,26 @@ def create_choropleth_map(df, df_atores=None):
                 key="mapa_choropleth"
             )
             
-            # Armazena a seleção no session_state para processar na próxima renderização
-            # (não podemos modificar session_state de widgets aqui, pois eles já foram criados)
+            # Quando há uma seleção, armazena para processar na próxima renderização
+            # IMPORTANTE: O on_select="rerun" faz rerun automaticamente quando há seleção
+            # Na próxima renderização (que acontece imediatamente após o clique), 
+            # a seleção será processada ANTES dos widgets serem criados
             if selected_data and isinstance(selected_data, dict):
                 if 'selection' in selected_data:
                     selection = selected_data['selection']
                     if selection and 'points' in selection and len(selection['points']) > 0:
-                        # Cria hash da seleção para verificar se é nova
                         point = selection['points'][0]
                         if 'customdata' in point and len(point['customdata']) >= 2:
+                            # Cria hash da seleção para verificar se é nova
                             selecao_hash = str(point['customdata'][0]) + "|" + str(point['customdata'][1])
-                            # Só armazena se for uma seleção nova (diferente da última processada)
                             ultima_hash = st.session_state.get("ultima_selecao_processada", None)
+                            
+                            # Se é uma seleção nova, armazena e força rerun para processar imediatamente
                             if selecao_hash != ultima_hash:
                                 st.session_state.mapa_selecao_pendente = selection
+                                # Força rerun para processar a seleção na próxima renderização
+                                # (antes dos widgets serem criados)
+                                st.rerun()
         except TypeError:
             # Fallback para versões antigas do Streamlit que não suportam on_select
             st.plotly_chart(fig, use_container_width=True, config=map_config)
@@ -1828,22 +1933,26 @@ def create_data_table(df, df_regions_map=None):
         # Cria uma cópia para estilização
         df_display = df[colunas_disponiveis].copy()
         
-        # Processa a coluna de site - formata como texto simples
-        if coluna_site and coluna_site in df_display.columns:
-            def formatar_site_completo(url):
+        # Processa a coluna de site - garante que tenha URLs válidas para LinkColumn
+        # IMPORTANTE: Isso deve ser feito ANTES de criar o MultiIndex
+        if coluna_site:
+            def formatar_site_url(url):
                 """
-                Formata o campo de site para exibir a URL por extenso (texto simples).
+                Formata o campo de site para garantir URL válida (com protocolo).
+                Retorna string vazia para valores inválidos (LinkColumn precisa de strings).
                 """
                 if pd.isna(url) or str(url).strip() == '':
-                    return ''
+                    return ''  # Retorna string vazia (não None)
                 url_str = str(url).strip()
                 # Garante que a URL tenha protocolo
                 if not url_str.startswith(('http://', 'https://')):
                     url_str = 'https://' + url_str
                 return url_str
             
-            # Aplica a função para formatar o site como texto simples
-            df_display[coluna_site] = df_display[coluna_site].apply(formatar_site_completo)
+            # Aplica a função para formatar o site como URL válida
+            # Garante que seja do tipo string
+            if coluna_site in df_display.columns:
+                df_display[coluna_site] = df_display[coluna_site].apply(formatar_site_url).astype(str)
         
         # Formata a coluna "Ano de Fundação" para remover casas decimais
         for col in df_display.columns:
@@ -1899,6 +2008,23 @@ def create_data_table(df, df_regions_map=None):
         is_multiindex = isinstance(df_display.columns, pd.MultiIndex)
         
         # Formata novamente após criar MultiIndex (caso necessário)
+        # Garante que a coluna de site seja string após criar MultiIndex
+        if is_multiindex and coluna_site:
+            for col_tuple in df_display.columns:
+                if len(col_tuple) == 2 and col_tuple[1] == coluna_site:
+                    # Garante que seja string e formata URLs
+                    def formatar_site_url_pos_multindex(url):
+                        if pd.isna(url) or str(url).strip() == '':
+                            return ''
+                        url_str = str(url).strip()
+                        if not url_str.startswith(('http://', 'https://')):
+                            url_str = 'https://' + url_str
+                        return url_str
+                    
+                    df_display[col_tuple] = df_display[col_tuple].apply(formatar_site_url_pos_multindex).astype(str)
+                    df_display[col_tuple] = df_display[col_tuple].replace('nan', '')
+                    break
+        
         # Formata a coluna "Ano de Fundação" para remover casas decimais
         if is_multiindex:
             for col_tuple in df_display.columns:
@@ -2093,15 +2219,67 @@ def create_data_table(df, df_regions_map=None):
             if format_dict:
                 styled_df = styled_df.format(format_dict, na_rep='')
             
-            # Constrói tabela HTML manualmente com tooltips para links
-            if coluna_site and coluna_site in df_display.columns:
-                html_table = _build_custom_html_table(
-                    df_display, styled_df, is_multiindex, 
-                    categoria_col_for_style, regiao_col_for_style, 
-                    regioes_cores, coluna_site, format_dict
-                )
+            # Configura column_config para coluna de site como LinkColumn
+            # IMPORTANTE: Quando usamos column_config, precisamos usar o DataFrame original (df_display),
+            # não o styled_df, porque o pandas Styler não funciona bem com column_config
+            column_config = {}
+            if coluna_site:
+                # Encontra a coluna de site (pode ser MultiIndex ou não)
+                coluna_site_key = None
+                if is_multiindex:
+                    # Para MultiIndex, encontra a tupla correta
+                    for col_tuple in df_display.columns:
+                        if len(col_tuple) == 2 and col_tuple[1] == coluna_site:
+                            coluna_site_key = col_tuple
+                            break
+                else:
+                    # Para coluna simples, verifica se existe
+                    if coluna_site in df_display.columns:
+                        coluna_site_key = coluna_site
                 
-                st.markdown(html_table, unsafe_allow_html=True)
+                if coluna_site_key:
+                    # Garante que a coluna seja do tipo string (LinkColumn requer strings)
+                    # E que todas as URLs tenham protocolo
+                    def garantir_url_valida(url):
+                        if pd.isna(url) or str(url).strip() == '' or str(url).strip() in ['nan', 'None', 'NaN']:
+                            return ''
+                        url_str = str(url).strip()
+                        # Garante que a URL tenha protocolo
+                        if url_str and not url_str.startswith(('http://', 'https://')):
+                            url_str = 'https://' + url_str
+                        return url_str
+                    
+                    df_display[coluna_site_key] = df_display[coluna_site_key].apply(garantir_url_valida).astype(str)
+                    
+                    # Configura a coluna de site como LinkColumn
+                    # Seguindo o exemplo do Streamlit exatamente
+                    column_config[coluna_site_key] = st.column_config.LinkColumn(
+                        help="Clique para abrir o site em uma nova aba"
+                    )
+            
+            # Se há column_config, usa o DataFrame original ao invés do styled_df
+            # porque column_config não funciona corretamente com pandas Styler
+            if column_config:
+                # IMPORTANTE: column_config não aceita tuplas como chaves (MultiIndex)
+                # Precisamos aplanar o MultiIndex antes de aplicar o column_config
+                df_para_display = df_display.copy()
+                column_config_flat = {}
+                
+                if is_multiindex:
+                    # Aplana o MultiIndex: usa apenas o segundo nível como nome da coluna
+                    df_para_display.columns = [col[1] if len(col) == 2 else col for col in df_para_display.columns]
+                    # Cria um novo column_config com chaves aplanadas (strings)
+                    for old_key, config in column_config.items():
+                        if isinstance(old_key, tuple) and len(old_key) == 2:
+                            # Usa o segundo nível da tupla como chave (nome da coluna)
+                            new_key = old_key[1]
+                            column_config_flat[new_key] = config
+                        else:
+                            column_config_flat[old_key] = config
+                else:
+                    column_config_flat = column_config
+                
+                st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
             else:
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
         else:
@@ -2191,20 +2369,67 @@ def create_data_table(df, df_regions_map=None):
             if format_dict:
                 styled_df = styled_df.format(format_dict, na_rep='')
             
-            # Para renderizar HTML na coluna de link (ícone) ou site, precisamos usar tabela customizada
-            coluna_com_html = coluna_site
-            if coluna_com_html and coluna_com_html in df_display.columns:
-                # Constrói tabela HTML manualmente para garantir que links funcionem
-                html_table = _build_custom_html_table(
-                    df_display, styled_df, is_multiindex, 
-                    categoria_col_for_style, regiao_col_for_style, 
-                    regioes_cores, coluna_site, format_dict
-                )
+            # Configura column_config para coluna de site como LinkColumn
+            # IMPORTANTE: Quando usamos column_config, precisamos usar o DataFrame original (df_display),
+            # não o styled_df, porque o pandas Styler não funciona bem com column_config
+            column_config = {}
+            if coluna_site:
+                # Encontra a coluna de site (pode ser MultiIndex ou não)
+                coluna_site_key = None
+                if is_multiindex:
+                    # Para MultiIndex, encontra a tupla correta
+                    for col_tuple in df_display.columns:
+                        if len(col_tuple) == 2 and col_tuple[1] == coluna_site:
+                            coluna_site_key = col_tuple
+                            break
+                else:
+                    # Para coluna simples, verifica se existe
+                    if coluna_site in df_display.columns:
+                        coluna_site_key = coluna_site
                 
-                # Substitui o ID da tabela para o segundo caso
-                html_table = html_table.replace('id="data-table"', 'id="data-table-2"')
+                if coluna_site_key:
+                    # Garante que a coluna seja do tipo string (LinkColumn requer strings)
+                    # E que todas as URLs tenham protocolo
+                    def garantir_url_valida(url):
+                        if pd.isna(url) or str(url).strip() == '' or str(url).strip() in ['nan', 'None', 'NaN']:
+                            return ''
+                        url_str = str(url).strip()
+                        # Garante que a URL tenha protocolo
+                        if url_str and not url_str.startswith(('http://', 'https://')):
+                            url_str = 'https://' + url_str
+                        return url_str
+                    
+                    df_display[coluna_site_key] = df_display[coluna_site_key].apply(garantir_url_valida).astype(str)
+                    
+                    # Configura a coluna de site como LinkColumn
+                    # Seguindo o exemplo do Streamlit exatamente
+                    column_config[coluna_site_key] = st.column_config.LinkColumn(
+                        help="Clique para abrir o site em uma nova aba"
+                    )
+            
+            # Se há column_config, usa o DataFrame original ao invés do styled_df
+            # porque column_config não funciona corretamente com pandas Styler
+            if column_config:
+                # IMPORTANTE: column_config não aceita tuplas como chaves (MultiIndex)
+                # Precisamos aplanar o MultiIndex antes de aplicar o column_config
+                df_para_display = df_display.copy()
+                column_config_flat = {}
                 
-                st.markdown(html_table, unsafe_allow_html=True)
+                if is_multiindex:
+                    # Aplana o MultiIndex: usa apenas o segundo nível como nome da coluna
+                    df_para_display.columns = [col[1] if len(col) == 2 else col for col in df_para_display.columns]
+                    # Cria um novo column_config com chaves aplanadas (strings)
+                    for old_key, config in column_config.items():
+                        if isinstance(old_key, tuple) and len(old_key) == 2:
+                            # Usa o segundo nível da tupla como chave (nome da coluna)
+                            new_key = old_key[1]
+                            column_config_flat[new_key] = config
+                        else:
+                            column_config_flat[old_key] = config
+                else:
+                    column_config_flat = column_config
+                
+                st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
             else:
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
