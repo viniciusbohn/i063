@@ -875,6 +875,46 @@ def create_choropleth_map(df, df_atores=None):
     categorias_selecionadas = []
     categorias_disponiveis = []
     
+    # Processa seleção do mapa ANTES de criar os widgets (para evitar erro de modificação do session_state)
+    # Verifica se há uma seleção pendente do mapa e se é diferente da última processada
+    if "mapa_selecao_pendente" in st.session_state and st.session_state.mapa_selecao_pendente:
+        selecao = st.session_state.mapa_selecao_pendente
+        
+        # Cria um hash da seleção para comparar com a última processada
+        selecao_hash = None
+        if selecao and 'points' in selecao and len(selecao['points']) > 0:
+            point = selecao['points'][0]
+            if 'customdata' in point and len(point['customdata']) >= 2:
+                selecao_hash = str(point['customdata'][0]) + "|" + str(point['customdata'][1])
+        
+        # Verifica se é uma seleção nova (diferente da última processada)
+        ultima_selecao_hash = st.session_state.get("ultima_selecao_processada", None)
+        
+        if selecao_hash and selecao_hash != ultima_selecao_hash:
+            if selecao and 'points' in selecao and len(selecao['points']) > 0:
+                point = selecao['points'][0]
+                if 'customdata' in point and len(point['customdata']) >= 2:
+                    regiao_clicada = point['customdata'][0]
+                    municipio_clicado = point['customdata'][1]
+                    
+                    # Obtém o estado atual dos filtros
+                    regiao_atual = st.session_state.get("filtro_regiao", "Todas")
+                    
+                    # Se não há região filtrada (ou é "Todas"), filtra por região
+                    if regiao_atual == "Todas":
+                        st.session_state.filtro_regiao = regiao_clicada
+                        st.session_state.filtro_municipio = "Todos"  # Reseta município
+                    # Se já há região filtrada, filtra por município
+                    else:
+                        st.session_state.filtro_municipio = municipio_clicado
+                    
+                    # Marca esta seleção como processada
+                    st.session_state.ultima_selecao_processada = selecao_hash
+                    # Limpa a seleção pendente para evitar reprocessamento
+                    st.session_state.mapa_selecao_pendente = None
+                    # Força rerun para aplicar os filtros imediatamente
+                    st.rerun()
+    
     # Cria layout com filtros à esquerda e mapa à direita
     col_filters, col_map = st.columns([0.35, 0.65])
     
@@ -949,10 +989,18 @@ def create_choropleth_map(df, df_atores=None):
         else:
             municipios_disponiveis = sorted(df_regions[coluna_municipio].unique())
         
+        # Inicializa com "Todos" se não estiver definido
+        if "filtro_municipio" not in st.session_state:
+            st.session_state.filtro_municipio = "Todos"
+        
+        # Garante que o valor no session_state seja válido
+        opcoes_municipio = ["Todos"] + municipios_disponiveis
+        if st.session_state.filtro_municipio not in opcoes_municipio:
+            st.session_state.filtro_municipio = "Todos"
+        
         municipio_selecionado = st.selectbox(
             "Município",
-            options=["Todos"] + municipios_disponiveis,
-            index=0,
+            options=opcoes_municipio,
             key="filtro_municipio"
         )
         
@@ -1341,7 +1389,45 @@ def create_choropleth_map(df, df_atores=None):
 
     # Mostra o mapa no lado direito (legenda está dentro do mapa)
     with col_map:
-        st.plotly_chart(fig, use_container_width=True, config=MAP_CONFIG)
+        # Habilita seleção no mapa para capturar cliques
+        fig.update_layout(
+            clickmode='event+select'
+        )
+        
+        # Configura o mapa para permitir seleção
+        map_config = MAP_CONFIG.copy()
+        map_config['displayModeBar'] = True
+        
+        # Obtém o estado atual dos filtros para decidir o comportamento
+        regiao_atual = st.session_state.get("filtro_regiao", "Todas")
+        
+        # Renderiza o mapa e captura seleções usando on_select (Streamlit 1.28+)
+        try:
+            selected_data = st.plotly_chart(
+                fig, 
+                use_container_width=True, 
+                config=map_config,
+                on_select="rerun",
+                key="mapa_choropleth"
+            )
+            
+            # Armazena a seleção no session_state para processar na próxima renderização
+            # (não podemos modificar session_state de widgets aqui, pois eles já foram criados)
+            if selected_data and isinstance(selected_data, dict):
+                if 'selection' in selected_data:
+                    selection = selected_data['selection']
+                    if selection and 'points' in selection and len(selection['points']) > 0:
+                        # Cria hash da seleção para verificar se é nova
+                        point = selection['points'][0]
+                        if 'customdata' in point and len(point['customdata']) >= 2:
+                            selecao_hash = str(point['customdata'][0]) + "|" + str(point['customdata'][1])
+                            # Só armazena se for uma seleção nova (diferente da última processada)
+                            ultima_hash = st.session_state.get("ultima_selecao_processada", None)
+                            if selecao_hash != ultima_hash:
+                                st.session_state.mapa_selecao_pendente = selection
+        except TypeError:
+            # Fallback para versões antigas do Streamlit que não suportam on_select
+            st.plotly_chart(fig, use_container_width=True, config=map_config)
 
 
 def create_alternative_choropleth(df_regions):
