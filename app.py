@@ -2290,15 +2290,33 @@ def main():
                         break
                 
                 if coluna_categoria_startups:
+                    # Mapeia categorias do filtro do mapa para categorias reais na tabela
+                    categorias_mapeadas = []
+                    for cat_filtro in categorias_filtro_tabela:
+                        cat_filtro_str = str(cat_filtro).strip()
+                        if cat_filtro_str == "Universidades e ICTs":
+                            # Mapeia para as categorias reais na tabela
+                            categorias_mapeadas.extend(["Universidade", "ICT", "Universidade/ICT"])
+                        elif cat_filtro_str == "Órgãos Públicos e Apoio":
+                            # Mapeia para as categorias reais na tabela
+                            categorias_mapeadas.extend(["Órgão Público", "Órgão de Apoio"])
+                        else:
+                            # Mantém a categoria original para outras categorias
+                            categorias_mapeadas.append(cat_filtro_str)
+                    
+                    # Remove duplicatas mantendo a ordem
+                    categorias_mapeadas = list(dict.fromkeys(categorias_mapeadas))
+                    
                     antes = len(df_startups_para_tabela)
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().isin(
-                            [str(cat).strip() for cat in categorias_filtro_tabela]
+                            [str(cat).strip() for cat in categorias_mapeadas]
                         )
                     ]
                     depois = len(df_startups_para_tabela)
                     if st.session_state.get('show_debug', False):
                         st.write(f"🔍 Filtro categoria: {antes} → {depois} linhas")
+                        st.write(f"🔍 Categorias mapeadas: {categorias_mapeadas}")
             
             # Mostra contador de dados após filtros
             total_apos_filtros = len(df_startups_para_tabela)
