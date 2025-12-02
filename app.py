@@ -209,11 +209,13 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Remove espaços dos nomes das colunas (importante!)
         df.columns = df.columns.str.strip()
         
-        # Remove linhas onde a primeira coluna está vazia
+        # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
         if len(df) > 0 and len(df.columns) > 0:
             primeira_col = df.columns[0]
             if primeira_col in df.columns:
-                df = df[df[primeira_col].notna()]
+                # Remove linhas onde a primeira coluna é NaN OU string vazia (após remover espaços)
+                mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
+                df = df[mask]
                 # Remove linhas que são claramente cabeçalhos duplicados
                 df = df[~df[primeira_col].astype(str).str.contains('^name$|^Name$|^NAME$', case=False, na=False, regex=True)]
         
@@ -2085,6 +2087,19 @@ def main():
     Função principal do dashboard
     """
     
+    # Adiciona botões de controle no topo da página
+    col1, col2, col3 = st.columns([1, 1, 10])
+    with col1:
+        if st.button("🔄 Limpar Cache", help="Força o reload dos dados da planilha", use_container_width=True):
+            st.cache_data.clear()
+            st.success("Cache limpo! Recarregando...")
+            st.rerun()
+    
+    with col2:
+        if st.button("📊 Debug", help="Mostra informações sobre os dados carregados", use_container_width=True):
+            st.session_state.show_debug = not st.session_state.get('show_debug', False)
+            st.rerun()
+    
     # Carrega dados do mapa (aba "Municípios e Regiões")
     with st.spinner("Carregando dados do mapa..."):
         df_mapa = load_data_municipios_regioes(force_reload=False)
@@ -2092,6 +2107,25 @@ def main():
     # Carrega dados da tabela (aba "Base | Atores MG")
     with st.spinner("Carregando dados das startups..."):
         df_startups = load_data_base_atores(force_reload=False)
+    
+    # Mostra informações de debug se solicitado
+    if st.session_state.get('show_debug', False):
+        st.info("🔍 **Informações de Debug:**")
+        col_debug1, col_debug2 = st.columns(2)
+        with col_debug1:
+            st.write(f"**Dados do Mapa:** {len(df_mapa)} linhas")
+            if not df_mapa.empty:
+                st.write(f"Colunas: {', '.join(df_mapa.columns[:5].tolist())}...")
+        with col_debug2:
+            st.write(f"**Dados da Tabela:** {len(df_startups)} linhas")
+            if not df_startups.empty:
+                st.write(f"Colunas: {', '.join(df_startups.columns[:5].tolist())}...")
+                # Mostra primeiras linhas da primeira coluna
+                primeira_col = df_startups.columns[0]
+                st.write(f"Primeira coluna: **{primeira_col}**")
+                valores_unicos = df_startups[primeira_col].dropna().unique()[:5]
+                st.write(f"Primeiros valores: {list(valores_unicos)}")
+        st.markdown("---")
     
     if df_mapa.empty:
         st.error("Não foi possível carregar os dados do mapa.")
