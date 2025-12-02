@@ -780,6 +780,8 @@ def create_choropleth_map(df, df_atores=None):
     coluna_qtd_startups = "qtd_startups"
     coluna_qtd_empresas_ancora = "qtd_empresas_ancora"
     coluna_qtd_fundos_e_investidores = "qtd_fundos_e_investidores"
+    coluna_qtd_universidades_icts = "qtd_universidades_icts"
+    coluna_qtd_orgaos = "qtd_orgaos"
     coluna_codigo_ibge = "codigo_ibge"
 
     if coluna_regiao not in df.columns:
@@ -810,6 +812,10 @@ def create_choropleth_map(df, df_atores=None):
         colunas_necessarias.append(coluna_qtd_empresas_ancora)
     if coluna_qtd_fundos_e_investidores in df.columns:
         colunas_necessarias.append(coluna_qtd_fundos_e_investidores)
+    if coluna_qtd_universidades_icts in df.columns:
+        colunas_necessarias.append(coluna_qtd_universidades_icts)
+    if coluna_qtd_orgaos in df.columns:
+        colunas_necessarias.append(coluna_qtd_orgaos)
     
     df_map = df[colunas_necessarias].copy()
     df_map = df_map.dropna(subset=[coluna_municipio, coluna_regiao])
@@ -822,6 +828,10 @@ def create_choropleth_map(df, df_atores=None):
         df_map[coluna_qtd_empresas_ancora] = pd.to_numeric(df_map[coluna_qtd_empresas_ancora], errors='coerce').fillna(0).astype(int)
     if coluna_qtd_fundos_e_investidores in df_map.columns:
         df_map[coluna_qtd_fundos_e_investidores] = pd.to_numeric(df_map[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0).astype(int)
+    if coluna_qtd_universidades_icts in df_map.columns:
+        df_map[coluna_qtd_universidades_icts] = pd.to_numeric(df_map[coluna_qtd_universidades_icts], errors='coerce').fillna(0).astype(int)
+    if coluna_qtd_orgaos in df_map.columns:
+        df_map[coluna_qtd_orgaos] = pd.to_numeric(df_map[coluna_qtd_orgaos], errors='coerce').fillna(0).astype(int)
 
     # Base de municípios com latitude/longitude (para coordenadas se necessário)
     df_municipios = load_municipios_com_coordenadas()
@@ -893,6 +903,10 @@ def create_choropleth_map(df, df_atores=None):
                 categorias_base.append("Empresa Âncora")
             if coluna_qtd_fundos_e_investidores in df.columns:
                 categorias_base.append("Fundos e Investidores")
+            if coluna_qtd_universidades_icts in df.columns:
+                categorias_base.append("Universidades e ICTs")
+            if coluna_qtd_orgaos in df.columns:
+                categorias_base.append("Órgãos Públicos e Apoio")
             categorias_disponiveis = categorias_base
         
         # Cabeçalho com título e botão de reset
@@ -981,6 +995,12 @@ def create_choropleth_map(df, df_atores=None):
             if "Fundos e Investidores" in categorias_selecionadas and coluna_qtd_fundos_e_investidores in df_regions_filtrado.columns:
                 count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0)
             
+            if "Universidades e ICTs" in categorias_selecionadas and coluna_qtd_universidades_icts in df_regions_filtrado.columns:
+                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_universidades_icts], errors='coerce').fillna(0)
+            
+            if "Órgãos Públicos e Apoio" in categorias_selecionadas and coluna_qtd_orgaos in df_regions_filtrado.columns:
+                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_orgaos], errors='coerce').fillna(0)
+            
             df_regions_filtrado['count'] = count_filtrado.astype(int)
         elif categorias_disponiveis:
             # Se nenhuma categoria selecionada mas há categorias disponíveis, não mostra nada
@@ -1017,10 +1037,22 @@ def create_choropleth_map(df, df_atores=None):
         else:
             contadores["Fundos e Investidores"] = 0
         
+        # Universidades e ICTs - usa dados agregados do mapa
+        if coluna_qtd_universidades_icts in df_regions_filtrado.columns:
+            total_universidades = pd.to_numeric(df_regions_filtrado[coluna_qtd_universidades_icts], errors='coerce').fillna(0).sum()
+            contadores["Universidades e ICTs"] = int(total_universidades)
+        else:
+            contadores["Universidades e ICTs"] = 0
+        
+        # Órgãos Públicos e Apoio - usa dados agregados do mapa
+        if coluna_qtd_orgaos in df_regions_filtrado.columns:
+            total_orgaos = pd.to_numeric(df_regions_filtrado[coluna_qtd_orgaos], errors='coerce').fillna(0).sum()
+            contadores["Órgãos Públicos e Apoio"] = int(total_orgaos)
+        else:
+            contadores["Órgãos Públicos e Apoio"] = 0
+        
         # Outras categorias - por enquanto ficam zeradas (serão implementadas depois)
         contadores["Hubs, Incubadoras e Parques Tecnológicos"] = 0
-        contadores["Universidades e ICTs"] = 0
-        contadores["Órgãos Públicos e Apoio"] = 0
         
         # Cria cards em grid 3x2
         col1, col2, col3 = st.columns(3)
@@ -1203,6 +1235,8 @@ def create_choropleth_map(df, df_atores=None):
         qtd_startups_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_startups], errors='coerce').fillna(0).astype(int).values if coluna_qtd_startups in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
         qtd_empresas_ancora_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_empresas_ancora], errors='coerce').fillna(0).astype(int).values if coluna_qtd_empresas_ancora in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
         qtd_fundos_e_investidores_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0).astype(int).values if coluna_qtd_fundos_e_investidores in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
+        qtd_universidades_icts_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_universidades_icts], errors='coerce').fillna(0).astype(int).values if coluna_qtd_universidades_icts in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
+        qtd_orgaos_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_orgaos], errors='coerce').fillna(0).astype(int).values if coluna_qtd_orgaos in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
 
         # Constrói hovertemplate dinamicamente baseado nas categorias selecionadas
         hovertemplate_parts = [
@@ -1213,8 +1247,8 @@ def create_choropleth_map(df, df_atores=None):
         # Se nenhuma categoria selecionada, mostra todas as disponíveis
         categorias_para_mostrar = categorias_selecionadas if categorias_selecionadas else categorias_disponiveis
         
-        # Adiciona todas as categorias no customdata na ordem fixa: startups, empresas âncora, fundos
-        # Índices: 0=região, 1=município, 2=startups, 3=empresas âncora, 4=fundos e investidores
+        # Adiciona todas as categorias no customdata na ordem fixa: startups, empresas âncora, fundos, universidades, órgãos
+        # Índices: 0=região, 1=município, 2=startups, 3=empresas âncora, 4=fundos e investidores, 5=universidades e ICTs, 6=órgãos
         
         # Adiciona apenas as categorias que devem ser mostradas no hovertemplate
         if "Startup" in categorias_para_mostrar:
@@ -1225,6 +1259,12 @@ def create_choropleth_map(df, df_atores=None):
         
         if "Fundos e Investidores" in categorias_para_mostrar:
             hovertemplate_parts.append("<b>Total de Fundos e Investidores:</b> %{customdata[4]}<br>")
+        
+        if "Universidades e ICTs" in categorias_para_mostrar:
+            hovertemplate_parts.append("<b>Total de Universidades e ICTs:</b> %{customdata[5]}<br>")
+        
+        if "Órgãos Públicos e Apoio" in categorias_para_mostrar:
+            hovertemplate_parts.append("<b>Total de Órgãos Públicos e Apoio:</b> %{customdata[6]}<br>")
         
         hovertemplate_parts.append("<extra></extra>")
         hovertemplate_str = "".join(hovertemplate_parts)
@@ -1248,6 +1288,8 @@ def create_choropleth_map(df, df_atores=None):
                         qtd_startups_vals,
                         qtd_empresas_ancora_vals,
                         qtd_fundos_e_investidores_vals,
+                        qtd_universidades_icts_vals,
+                        qtd_orgaos_vals,
                     ),
                     axis=-1,
                 ),
