@@ -2157,66 +2157,115 @@ def main():
     
     # Campo de pesquisa acima da tabela
     if not df_startups_filtered.empty:
-        # Aplica os mesmos filtros do mapa aos dados das startups
-        df_startups_para_tabela = df_startups_filtered.copy()
+        # Opção para ignorar filtros do mapa
+        st.subheader("📋 Tabela de Dados")
         
-        # Obtém os valores dos filtros do session_state (definidos no mapa)
-        regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
-        municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
-        categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
+        # Contador de dados antes dos filtros
+        total_antes_filtros = len(df_startups_filtered)
         
-        # Aplica filtro de região
-        if regiao_filtro_tabela != "Todas":
-            # Procura coluna de região nas startups (com várias variações)
-            coluna_regiao_startups = None
-            possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
-                                     'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome in col_lower for nome in possiveis_nomes_regiao):
-                    coluna_regiao_startups = col
-                    break
+        # Checkbox para ignorar filtros do mapa
+        ignorar_filtros = st.checkbox(
+            "🔓 Mostrar TODOS os dados (ignorar filtros do mapa)",
+            value=False,
+            help="Marque esta opção para ver todos os dados, independente dos filtros aplicados no mapa"
+        )
+        
+        # Aplica os mesmos filtros do mapa aos dados das startups (se não estiver ignorando)
+        if ignorar_filtros:
+            df_startups_para_tabela = df_startups_filtered.copy()
+            # Mostra aviso
+            st.info(f"📊 Mostrando **TODOS** os {len(df_startups_para_tabela)} registros (filtros do mapa ignorados)")
+        else:
+            df_startups_para_tabela = df_startups_filtered.copy()
             
-            if coluna_regiao_startups:
-                df_startups_para_tabela = df_startups_para_tabela[
-                    df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
-                ]
-        
-        # Aplica filtro de município
-        if municipio_filtro_tabela != "Todos":
-            # Procura coluna de município/cidade nas startups
-            coluna_municipio_startups = None
-            possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome in col_lower for nome in possiveis_nomes_municipio):
-                    coluna_municipio_startups = col
-                    break
+            # Obtém os valores dos filtros do session_state (definidos no mapa)
+            regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
+            municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
+            categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
             
-            if coluna_municipio_startups:
-                df_startups_para_tabela = df_startups_para_tabela[
-                    df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
-                ]
-        
-        # Aplica filtro de categoria
-        if categorias_filtro_tabela:
-            # Procura coluna de categoria nas startups
-            coluna_categoria_startups = None
-            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
-                    coluna_categoria_startups = col
-                    break
+            # Conta quantos filtros estão ativos
+            filtros_ativos = []
+            if regiao_filtro_tabela != "Todas":
+                filtros_ativos.append(f"Região: {regiao_filtro_tabela}")
+            if municipio_filtro_tabela != "Todos":
+                filtros_ativos.append(f"Município: {municipio_filtro_tabela}")
+            if categorias_filtro_tabela:
+                filtros_ativos.append(f"Categorias: {', '.join(categorias_filtro_tabela)}")
             
-            if coluna_categoria_startups:
-                df_startups_para_tabela = df_startups_para_tabela[
-                    df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().isin(
-                        [str(cat).strip() for cat in categorias_filtro_tabela]
-                    )
-                ]
+            if filtros_ativos:
+                st.warning(f"⚠️ **Filtros ativos do mapa:** {', '.join(filtros_ativos)}. Use a opção acima para ver todos os dados.")
         
-        # Campo de pesquisa
+            # Aplica filtro de região (apenas se não estiver ignorando filtros)
+            if not ignorar_filtros and regiao_filtro_tabela != "Todas":
+                # Procura coluna de região nas startups (com várias variações)
+                coluna_regiao_startups = None
+                possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
+                                         'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome in col_lower for nome in possiveis_nomes_regiao):
+                        coluna_regiao_startups = col
+                        break
+                
+                if coluna_regiao_startups:
+                    antes = len(df_startups_para_tabela)
+                    df_startups_para_tabela = df_startups_para_tabela[
+                        df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
+                    ]
+                    depois = len(df_startups_para_tabela)
+                    if st.session_state.get('show_debug', False):
+                        st.write(f"🔍 Filtro região: {antes} → {depois} linhas")
+            
+            # Aplica filtro de município (apenas se não estiver ignorando filtros)
+            if not ignorar_filtros and municipio_filtro_tabela != "Todos":
+                # Procura coluna de município/cidade nas startups
+                coluna_municipio_startups = None
+                possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome in col_lower for nome in possiveis_nomes_municipio):
+                        coluna_municipio_startups = col
+                        break
+                
+                if coluna_municipio_startups:
+                    antes = len(df_startups_para_tabela)
+                    df_startups_para_tabela = df_startups_para_tabela[
+                        df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
+                    ]
+                    depois = len(df_startups_para_tabela)
+                    if st.session_state.get('show_debug', False):
+                        st.write(f"🔍 Filtro município: {antes} → {depois} linhas")
+            
+            # Aplica filtro de categoria (apenas se não estiver ignorando filtros)
+            if not ignorar_filtros and categorias_filtro_tabela:
+                # Procura coluna de categoria nas startups
+                coluna_categoria_startups = None
+                possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
+                        coluna_categoria_startups = col
+                        break
+                
+                if coluna_categoria_startups:
+                    antes = len(df_startups_para_tabela)
+                    df_startups_para_tabela = df_startups_para_tabela[
+                        df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().isin(
+                            [str(cat).strip() for cat in categorias_filtro_tabela]
+                        )
+                    ]
+                    depois = len(df_startups_para_tabela)
+                    if st.session_state.get('show_debug', False):
+                        st.write(f"🔍 Filtro categoria: {antes} → {depois} linhas")
+            
+            # Mostra contador de dados após filtros
+            total_apos_filtros = len(df_startups_para_tabela)
+            if total_antes_filtros != total_apos_filtros:
+                st.caption(f"📊 Mostrando {total_apos_filtros} de {total_antes_filtros} registros (filtros aplicados)")
+            else:
+                st.caption(f"📊 Mostrando todos os {total_apos_filtros} registros")
+        
+        # Campo de pesquisa (fora do bloco if/else para funcionar em ambos os casos)
         texto_pesquisa = st.text_input(
             "🔍 Pesquisar por nome",
             value="",
