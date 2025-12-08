@@ -233,6 +233,34 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 except:
                     df = pd.read_csv(sheet_url, encoding='latin-1')
         
+        # CORREÇÃO: Verifica se os nomes das colunas estão concatenados com dados
+        # Se a primeira coluna tem um nome muito longo (mais de 50 caracteres), provavelmente está concatenado
+        primeira_col = df.columns[0] if len(df.columns) > 0 else None
+        if primeira_col and len(str(primeira_col)) > 50:
+            # Os nomes das colunas estão concatenados com dados
+            # Para "Base | Atores MG", define os nomes das colunas manualmente
+            if sheet_name == "Base | Atores MG":
+                # Conta quantas colunas temos
+                num_cols = len(df.columns)
+                # Define nomes padrão baseado no número de colunas conhecidas
+                expected_cols = ['Nome do Ator', 'Categoria', 'Cidade', 'Regiao Sebrae', 'Site', 
+                               'Descrição Resumida', 'Setor', 'Tags', 'Ano de Fundação', 
+                               'Tamanho da Equipe', 'Marco Legal', 'Relação com Beta-i']
+                # Se temos mais colunas, adiciona "Coluna X" para as extras
+                while len(expected_cols) < num_cols:
+                    expected_cols.append(f'Coluna {len(expected_cols) + 1}')
+                # Pega apenas as colunas necessárias
+                expected_cols = expected_cols[:num_cols]
+                # Renomeia as colunas
+                df.columns = expected_cols
+                # Remove as primeiras linhas que são dados concatenados
+                # Procura pela primeira linha que tem dados válidos (primeira coluna com menos de 50 caracteres)
+                if len(df) > 0:
+                    mask = df.iloc[:, 0].astype(str).str.len() < 50
+                    if mask.any():
+                        first_valid_idx = mask.idxmax() if hasattr(mask, 'idxmax') else (mask.argmax() if hasattr(mask, 'argmax') else 0)
+                        df = df.iloc[first_valid_idx:].reset_index(drop=True)
+        
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
         
@@ -248,6 +276,8 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 df = df[mask]
                 # Remove linhas que são claramente cabeçalhos duplicados
                 df = df[~df[primeira_col].astype(str).str.contains('^name$|^Name$|^NAME$', case=False, na=False, regex=True)]
+                # Remove linhas onde a primeira coluna tem mais de 100 caracteres (provavelmente dados concatenados)
+                df = df[df[primeira_col].astype(str).str.len() < 100]
         
         return df
     except Exception as e:
@@ -1851,10 +1881,30 @@ def create_data_table(df, df_regions_map=None):
                     adicionar_coluna(col)
                     return
     
-    # 1. Nome do ator
-    buscar_coluna(['name', 'nome', 'nome do ator'])
-    if 'name' in df.columns and 'name' not in colunas_adicionadas:
-        adicionar_coluna('name')
+    # 1. Nome do ator - busca pelo nome exato primeiro, depois variações
+    coluna_nome_ator = None
+    # Primeiro tenta o nome exato "Nome do Ator"
+    if 'Nome do Ator' in df.columns:
+        coluna_nome_ator = 'Nome do Ator'
+        adicionar_coluna('Nome do Ator')
+    else:
+        # Se não encontrar, busca por variações
+        possiveis_colunas_nome = ['name', 'nome', 'nome do ator', 'nome_ator', 'actor_name', 'nome_do_ator']
+        for col in df.columns:
+            col_lower = col.lower().strip()
+            # Verifica se é uma coluna de nome (não empresa/company)
+            if any(nome in col_lower for nome in possiveis_colunas_nome) and \
+               not any(palavra in col_lower for palavra in ['empresa', 'company', 'empres']):
+                coluna_nome_ator = col
+                adicionar_coluna(col)
+                break
+        
+        # Se não encontrou, tenta buscar de forma mais ampla
+        if not coluna_nome_ator:
+            buscar_coluna(['name', 'nome', 'nome do ator'])
+            if 'name' in df.columns and 'name' not in colunas_adicionadas:
+                adicionar_coluna('name')
+                coluna_nome_ator = 'name'
     
     # 2. Site (segunda coluna em Dados Gerais)
     coluna_site = None
@@ -1883,12 +1933,23 @@ def create_data_table(df, df_regions_map=None):
     # 3. Cidade
     buscar_coluna(['cidade_max', 'cidade', 'municipio', 'município', 'city'])
     
-    # 4. Região Sebrae (procura por qualquer coluna que contenha essas palavras)
-    for col in df.columns:
-        col_lower = col.lower().strip()
-        if ('sebrae' in col_lower or 'regiao' in col_lower or 'região' in col_lower) and col not in colunas_adicionadas:
-            adicionar_coluna(col)
-            break
+    # 4. Regiao Sebrae - busca pelo nome exato primeiro (sem acento)
+    coluna_regiao_sebrae = None
+    # Tenta os nomes exatos primeiro (com e sem acento)
+    if 'Regiao Sebrae' in df.columns:
+        coluna_regiao_sebrae = 'Regiao Sebrae'
+        adicionar_coluna('Regiao Sebrae')
+    elif 'Região Sebrae' in df.columns:
+        coluna_regiao_sebrae = 'Região Sebrae'
+        adicionar_coluna('Região Sebrae')
+    else:
+        # Se não encontrar, busca por variações
+        for col in df.columns:
+            col_lower = col.lower().strip()
+            if ('sebrae' in col_lower or 'regiao' in col_lower or 'região' in col_lower or 'mesorregiao' in col_lower) and col not in colunas_adicionadas:
+                coluna_regiao_sebrae = col
+                adicionar_coluna(col)
+                break
     
     # 6. Setor
     buscar_coluna(['sector', 'setor', 'setores'])
@@ -1930,8 +1991,24 @@ def create_data_table(df, df_regions_map=None):
         
         colunas_disponiveis = colunas_ordenadas
         
-        # Cria uma cópia para estilização
-        df_display = df[colunas_disponiveis].copy()
+        # Garante que a coluna de região seja incluída se existir
+        coluna_regiao_original = None
+        for col in df.columns:
+            col_lower = col.lower().strip()
+            if ('sebrae' in col_lower or 'regiao' in col_lower or 'região' in col_lower or 'mesorregiao' in col_lower):
+                coluna_regiao_original = col
+                # Adiciona se não estiver presente
+                if col not in colunas_disponiveis:
+                    colunas_disponiveis.append(col)
+                break
+        
+        # Cria uma cópia para estilização - IMPORTANTE: usa as colunas originais do DataFrame
+        # Garante que todas as colunas selecionadas existem no DataFrame original
+        colunas_validas = [col for col in colunas_disponiveis if col in df.columns]
+        if not colunas_validas:
+            # Se nenhuma coluna válida foi encontrada, usa todas as colunas disponíveis
+            colunas_validas = list(df.columns)
+        df_display = df[colunas_validas].copy()
         
         # Processa a coluna de site - garante que tenha URLs válidas para LinkColumn
         # IMPORTANTE: Isso deve ser feito ANTES de criar o MultiIndex
@@ -1963,49 +2040,75 @@ def create_data_table(df, df_regions_map=None):
                 # Converte para inteiro, tratando NaNs
                 df_display[col] = df_display[col].apply(lambda x: int(float(x)) if pd.notna(x) else pd.NA)
         
-        # Identifica quais colunas pertencem a cada grupo
-        # Usa as colunas reais do df_display (que pode incluir "Link" adicionada depois)
-        colunas_dados_gerais = []
-        colunas_dados_startups = []
-        outras_colunas = []
-        
-        # Identifica as colunas de cada grupo de forma mais precisa
-        # Itera sobre as colunas reais do DataFrame, não apenas colunas_disponiveis
+        # Mapeia nomes de colunas para nomes estáticos e limpos
+        # IMPORTANTE: Preserva nomes exatos quando já estão corretos
+        column_name_mapping = {}
         for col in df_display.columns:
-            col_lower = str(col).lower().strip()
+            col_str = str(col).strip()
+            col_lower = col_str.lower()
+            col_parts = col_str.split()
+            first_part = col_parts[0].lower() if col_parts else ''
             
-            # Dados Gerais: name/nome, site, categoria, cidade, região sebrae
-            if (any(palavra in col_lower for palavra in ['name', 'nome']) and not any(palavra in col_lower for palavra in ['empresa', 'company'])) or \
-               any(palavra in col_lower for palavra in ['site', 'website', 'url', 'link']) or \
-               any(palavra in col_lower for palavra in ['categoria', 'category']) or \
-               any(palavra in col_lower for palavra in ['cidade', 'municipio', 'city']) or \
-               any(palavra in col_lower for palavra in ['regiao', 'região', 'sebrae']):
-                colunas_dados_gerais.append(col)
-            # Dados (Startups): setor, ano de fundação
-            elif any(palavra in col_lower for palavra in ['sector', 'setor']) or \
-                 any(palavra in col_lower for palavra in ['foundation', 'ano de fundação', 'ano']):
-                colunas_dados_startups.append(col)
+            # Se o nome já está correto, preserva
+            if col_str == 'Nome do Ator':
+                column_name_mapping[col] = 'Nome do Ator'
+            elif col_str == 'Regiao Sebrae' or col_str == 'Região Sebrae':
+                column_name_mapping[col] = 'Regiao Sebrae'
+            # Caso contrário, mapeia baseado no conteúdo
+            elif (first_part in ['name', 'nome'] or 
+                  col_lower.startswith('nome') or 
+                  col_lower.startswith('name')) and \
+                 not any(palavra in col_lower for palavra in ['empresa', 'company', 'empres']):
+                column_name_mapping[col] = 'Nome do Ator'
+            elif any(palavra in first_part for palavra in ['site', 'website', 'url', 'link', 'web', 'homepage']) or \
+                 any(palavra in col_lower[:10] for palavra in ['site', 'website']):
+                column_name_mapping[col] = 'Site'
+            elif any(palavra in first_part for palavra in ['categoria', 'category', 'tipo', 'type']) or \
+                 any(palavra in col_lower[:15] for palavra in ['categoria', 'category']):
+                column_name_mapping[col] = 'Categoria'
+            elif any(palavra in first_part for palavra in ['cidade', 'municipio', 'município', 'city']):
+                column_name_mapping[col] = 'Cidade'
+            elif 'regiao sebrae' in col_lower or 'região sebrae' in col_lower or col_str == 'Regiao Sebrae' or col_str == 'Região Sebrae':
+                column_name_mapping[col] = 'Regiao Sebrae'
+            elif any(palavra in first_part for palavra in ['regiao', 'região', 'sebrae', 'mesorregiao']) or \
+                 any(palavra in col_lower[:15] for palavra in ['regiao', 'região', 'mesorregiao', 'sebrae']):
+                column_name_mapping[col] = 'Região'
+            elif any(palavra in first_part for palavra in ['sector', 'setor', 'setores']) or \
+                 any(palavra in col_lower[:10] for palavra in ['sector', 'setor']):
+                column_name_mapping[col] = 'Setor'
+            elif any(palavra in first_part for palavra in ['foundation', 'ano']) or \
+                 'ano de fundação' in col_lower or 'foundation' in col_lower[:15]:
+                column_name_mapping[col] = 'Ano de Fundação'
+            elif any(palavra in first_part for palavra in ['description', 'descrição', 'descricao']):
+                column_name_mapping[col] = 'Descrição'
             else:
-                outras_colunas.append(col)
+                # Para outras colunas, mantém o nome original
+                column_name_mapping[col] = col_str
         
-        # Cria MultiIndex para cabeçalhos agrupados
-        if colunas_dados_gerais or colunas_dados_startups:
-            tuples = []
-            # Adiciona colunas de Dados Gerais
-            for col in colunas_dados_gerais:
-                tuples.append(('Dados Gerais', col))
-            # Adiciona colunas de Dados (Startups)
-            for col in colunas_dados_startups:
-                tuples.append(('Dados (Startups)', col))
-            # Adiciona outras colunas sem cabeçalho agrupado
-            for col in outras_colunas:
-                tuples.append(('', col))
-            
-            # Cria MultiIndex
-            df_display.columns = pd.MultiIndex.from_tuples(tuples)
+        # Renomeia as colunas usando o mapeamento estático
+        df_display = df_display.rename(columns=column_name_mapping)
         
-        # Verifica se está usando MultiIndex
-        is_multiindex = isinstance(df_display.columns, pd.MultiIndex)
+        # Verifica e corrige mapeamentos incorretos
+        # Se há uma coluna "Nome" mas não "Nome do Ator", renomeia
+        if 'Nome' in df_display.columns and 'Nome do Ator' not in df_display.columns:
+            df_display = df_display.rename(columns={'Nome': 'Nome do Ator'})
+        
+        # Se há uma coluna que começa com "Nome" mas não é "Nome do Ator", tenta corrigir
+        for col in list(df_display.columns):
+            if col.startswith('Nome') and col != 'Nome do Ator' and 'Nome do Ator' not in df_display.columns:
+                df_display = df_display.rename(columns={col: 'Nome do Ator'})
+                break
+        
+        # Garante ordem correta das colunas: Nome do Ator primeiro
+        ordem_colunas = ['Nome do Ator', 'Site', 'Categoria', 'Cidade', 'Regiao Sebrae', 'Região Sebrae', 'Região', 'Setor', 'Ano de Fundação', 'Descrição']
+        colunas_existentes = [col for col in ordem_colunas if col in df_display.columns]
+        colunas_restantes = [col for col in df_display.columns if col not in ordem_colunas]
+        
+        # Reordena as colunas
+        df_display = df_display[colunas_existentes + colunas_restantes]
+        
+        # Verifica se está usando MultiIndex (sempre False agora)
+        is_multiindex = False
         
         # Formata novamente após criar MultiIndex (caso necessário)
         # Garante que a coluna de site seja string após criar MultiIndex
@@ -2044,24 +2147,21 @@ def create_data_table(df, df_regions_map=None):
                     df_display[col] = pd.to_numeric(df_display[col], errors='coerce')
                     df_display[col] = df_display[col].apply(lambda x: int(float(x)) if pd.notna(x) and not pd.isna(x) else pd.NA)
         
-        # Encontra a coluna de categoria para estilização (pode estar em MultiIndex ou não)
+        # Encontra a coluna de categoria para estilização
         categoria_col_for_style = None
         if coluna_categoria:
-            if is_multiindex:
-                # Procura a coluna de categoria no MultiIndex (segundo nível)
-                for col_tuple in df_display.columns:
-                    if len(col_tuple) == 2 and col_tuple[1] == coluna_categoria:
-                        categoria_col_for_style = col_tuple
-                        break
-            else:
-                if coluna_categoria in df_display.columns:
-                    categoria_col_for_style = coluna_categoria
+            # Usa o nome mapeado
+            categoria_col_mapped = column_name_mapping.get(coluna_categoria, None)
+            if categoria_col_mapped and categoria_col_mapped in df_display.columns:
+                categoria_col_for_style = categoria_col_mapped
         
         # Encontra a coluna de região Sebrae para estilização
+        # Usa o nome original da coluna antes do mapeamento
         coluna_regiao_sebrae = None
+        # Procura no DataFrame original
         for col in df.columns:
             col_lower = col.lower().strip()
-            if ('sebrae' in col_lower or 'regiao' in col_lower or 'região' in col_lower) and col in colunas_disponiveis:
+            if ('sebrae' in col_lower or 'regiao' in col_lower or 'região' in col_lower or 'mesorregiao' in col_lower):
                 coluna_regiao_sebrae = col
                 break
         
@@ -2073,18 +2173,13 @@ def create_data_table(df, df_regions_map=None):
             # Atribui cores usando a mesma paleta do mapa
             regioes_cores = {regiao: REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)] for i, regiao in enumerate(regioes_unicas)}
         
-        # Encontra a coluna de região no DataFrame display (pode estar em MultiIndex)
+        # Encontra a coluna de região no DataFrame display
         regiao_col_for_style = None
         if coluna_regiao_sebrae:
-            if is_multiindex:
-                # Procura a coluna de região no MultiIndex (segundo nível)
-                for col_tuple in df_display.columns:
-                    if len(col_tuple) == 2 and col_tuple[1] == coluna_regiao_sebrae:
-                        regiao_col_for_style = col_tuple
-                        break
-            else:
-                if coluna_regiao_sebrae in df_display.columns:
-                    regiao_col_for_style = coluna_regiao_sebrae
+            # Usa o nome mapeado
+            regiao_col_mapped = column_name_mapping.get(coluna_regiao_sebrae, None)
+            if regiao_col_mapped and regiao_col_mapped in df_display.columns:
+                regiao_col_for_style = regiao_col_mapped
         
         # Aplica estilo se tiver coluna de categoria
         if categoria_col_for_style:
@@ -2224,18 +2319,10 @@ def create_data_table(df, df_regions_map=None):
             # não o styled_df, porque o pandas Styler não funciona bem com column_config
             column_config = {}
             if coluna_site:
-                # Encontra a coluna de site (pode ser MultiIndex ou não)
-                coluna_site_key = None
-                if is_multiindex:
-                    # Para MultiIndex, encontra a tupla correta
-                    for col_tuple in df_display.columns:
-                        if len(col_tuple) == 2 and col_tuple[1] == coluna_site:
-                            coluna_site_key = col_tuple
-                            break
-                else:
-                    # Para coluna simples, verifica se existe
-                    if coluna_site in df_display.columns:
-                        coluna_site_key = coluna_site
+                # Usa o nome mapeado da coluna de site
+                coluna_site_key = column_name_mapping.get(coluna_site, None)
+                if not coluna_site_key or coluna_site_key not in df_display.columns:
+                    coluna_site_key = None
                 
                 if coluna_site_key:
                     # Garante que a coluna seja do tipo string (LinkColumn requer strings)
@@ -2267,21 +2354,105 @@ def create_data_table(df, df_regions_map=None):
                 
                 if is_multiindex:
                     # Aplana o MultiIndex: usa apenas o segundo nível como nome da coluna
-                    df_para_display.columns = [col[1] if len(col) == 2 else col for col in df_para_display.columns]
+                    # Garante que estamos usando apenas os nomes das colunas, não os valores
+                    new_columns = []
+                    for col in df_para_display.columns:
+                        if isinstance(col, tuple) and len(col) == 2:
+                            # Usa apenas o segundo nível (nome da coluna)
+                            new_columns.append(str(col[1]))
+                        elif isinstance(col, tuple):
+                            # Se for tupla mas não tiver 2 elementos, usa o último
+                            new_columns.append(str(col[-1]))
+                        else:
+                            # Se não for tupla, usa o valor diretamente (mas garante que é string)
+                            new_columns.append(str(col))
+                    df_para_display.columns = new_columns
                     # Cria um novo column_config com chaves aplanadas (strings)
                     for old_key, config in column_config.items():
                         if isinstance(old_key, tuple) and len(old_key) == 2:
                             # Usa o segundo nível da tupla como chave (nome da coluna)
-                            new_key = old_key[1]
+                            new_key = str(old_key[1])
                             column_config_flat[new_key] = config
                         else:
-                            column_config_flat[old_key] = config
+                            column_config_flat[str(old_key)] = config
                 else:
                     column_config_flat = column_config
                 
                 st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
             else:
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                # Sempre aplana o MultiIndex antes de renderizar para evitar problemas de renderização
+                if is_multiindex:
+                    df_para_display = df_display.copy()
+                    new_columns = []
+                    col_mapping = {}  # Mapeia colunas antigas para novas
+                    for col in df_para_display.columns:
+                        if isinstance(col, tuple) and len(col) == 2:
+                            new_col_name = str(col[1])
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                        elif isinstance(col, tuple):
+                            new_col_name = str(col[-1])
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                        else:
+                            new_col_name = str(col)
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                    df_para_display.columns = new_columns
+                    
+                    # Recria o styled_df com as colunas aplanadas, preservando estilos
+                    styled_df_flat = df_para_display.style
+                    
+                    # Aplica estilos de categoria se houver
+                    if categoria_col_for_style:
+                        categoria_col_flat = col_mapping.get(categoria_col_for_style, None)
+                        if categoria_col_flat:
+                            def style_categoria_flat(val):
+                                if pd.isna(val):
+                                    return ''
+                                valor_str = str(val).strip()
+                                cor = None
+                                for categoria_key, categoria_cor in CATEGORIA_COLORS.items():
+                                    if categoria_key.lower() in valor_str.lower() or valor_str.lower() in categoria_key.lower():
+                                        cor = categoria_cor
+                                        break
+                                if not cor:
+                                    cor = "#6c757d"
+                                if cor.startswith('#'):
+                                    r = int(cor[1:3], 16)
+                                    g = int(cor[3:5], 16)
+                                    b = int(cor[5:7], 16)
+                                    cor_transparente = f"rgba({r}, {g}, {b}, 0.3)"
+                                else:
+                                    cor_transparente = cor
+                                return f'background-color: {cor_transparente}; border-left: 3px solid {cor}; padding: 4px 8px;'
+                            styled_df_flat = styled_df_flat.map(style_categoria_flat, subset=[categoria_col_flat])
+                    
+                    # Aplica estilos de região se houver
+                    if regiao_col_for_style and regioes_cores:
+                        regiao_col_flat = col_mapping.get(regiao_col_for_style, None)
+                        if regiao_col_flat:
+                            def style_regiao_flat(val):
+                                if pd.isna(val):
+                                    return ''
+                                valor_str = str(val).strip()
+                                cor_hex = regioes_cores.get(valor_str, "#6c757d")
+                                cor_rgba = color_with_intensity(cor_hex, 0.0, min_alpha=0.18)
+                                return f'background-color: {cor_rgba}; padding: 4px 8px;'
+                            styled_df_flat = styled_df_flat.map(style_regiao_flat, subset=[regiao_col_flat])
+                    
+                    # Aplica formatação se houver
+                    if format_dict:
+                        format_dict_flat = {}
+                        for old_key, fmt in format_dict.items():
+                            new_key = col_mapping.get(old_key, old_key)
+                            format_dict_flat[new_key] = fmt
+                        if format_dict_flat:
+                            styled_df_flat = styled_df_flat.format(format_dict_flat, na_rep='')
+                    
+                    st.dataframe(styled_df_flat, use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
         else:
             # Aplica cores nas células da coluna de região (se existir) mesmo sem coluna de categoria
             styled_df = None
@@ -2374,18 +2545,10 @@ def create_data_table(df, df_regions_map=None):
             # não o styled_df, porque o pandas Styler não funciona bem com column_config
             column_config = {}
             if coluna_site:
-                # Encontra a coluna de site (pode ser MultiIndex ou não)
-                coluna_site_key = None
-                if is_multiindex:
-                    # Para MultiIndex, encontra a tupla correta
-                    for col_tuple in df_display.columns:
-                        if len(col_tuple) == 2 and col_tuple[1] == coluna_site:
-                            coluna_site_key = col_tuple
-                            break
-                else:
-                    # Para coluna simples, verifica se existe
-                    if coluna_site in df_display.columns:
-                        coluna_site_key = coluna_site
+                # Usa o nome mapeado da coluna de site
+                coluna_site_key = column_name_mapping.get(coluna_site, None)
+                if not coluna_site_key or coluna_site_key not in df_display.columns:
+                    coluna_site_key = None
                 
                 if coluna_site_key:
                     # Garante que a coluna seja do tipo string (LinkColumn requer strings)
@@ -2417,21 +2580,105 @@ def create_data_table(df, df_regions_map=None):
                 
                 if is_multiindex:
                     # Aplana o MultiIndex: usa apenas o segundo nível como nome da coluna
-                    df_para_display.columns = [col[1] if len(col) == 2 else col for col in df_para_display.columns]
+                    # Garante que estamos usando apenas os nomes das colunas, não os valores
+                    new_columns = []
+                    for col in df_para_display.columns:
+                        if isinstance(col, tuple) and len(col) == 2:
+                            # Usa apenas o segundo nível (nome da coluna)
+                            new_columns.append(str(col[1]))
+                        elif isinstance(col, tuple):
+                            # Se for tupla mas não tiver 2 elementos, usa o último
+                            new_columns.append(str(col[-1]))
+                        else:
+                            # Se não for tupla, usa o valor diretamente (mas garante que é string)
+                            new_columns.append(str(col))
+                    df_para_display.columns = new_columns
                     # Cria um novo column_config com chaves aplanadas (strings)
                     for old_key, config in column_config.items():
                         if isinstance(old_key, tuple) and len(old_key) == 2:
                             # Usa o segundo nível da tupla como chave (nome da coluna)
-                            new_key = old_key[1]
+                            new_key = str(old_key[1])
                             column_config_flat[new_key] = config
                         else:
-                            column_config_flat[old_key] = config
+                            column_config_flat[str(old_key)] = config
                 else:
                     column_config_flat = column_config
                 
                 st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
             else:
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                # Sempre aplana o MultiIndex antes de renderizar para evitar problemas de renderização
+                if is_multiindex:
+                    df_para_display = df_display.copy()
+                    new_columns = []
+                    col_mapping = {}  # Mapeia colunas antigas para novas
+                    for col in df_para_display.columns:
+                        if isinstance(col, tuple) and len(col) == 2:
+                            new_col_name = str(col[1])
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                        elif isinstance(col, tuple):
+                            new_col_name = str(col[-1])
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                        else:
+                            new_col_name = str(col)
+                            new_columns.append(new_col_name)
+                            col_mapping[col] = new_col_name
+                    df_para_display.columns = new_columns
+                    
+                    # Recria o styled_df com as colunas aplanadas, preservando estilos
+                    styled_df_flat = df_para_display.style
+                    
+                    # Aplica estilos de categoria se houver
+                    if categoria_col_for_style:
+                        categoria_col_flat = col_mapping.get(categoria_col_for_style, None)
+                        if categoria_col_flat:
+                            def style_categoria_flat(val):
+                                if pd.isna(val):
+                                    return ''
+                                valor_str = str(val).strip()
+                                cor = None
+                                for categoria_key, categoria_cor in CATEGORIA_COLORS.items():
+                                    if categoria_key.lower() in valor_str.lower() or valor_str.lower() in categoria_key.lower():
+                                        cor = categoria_cor
+                                        break
+                                if not cor:
+                                    cor = "#6c757d"
+                                if cor.startswith('#'):
+                                    r = int(cor[1:3], 16)
+                                    g = int(cor[3:5], 16)
+                                    b = int(cor[5:7], 16)
+                                    cor_transparente = f"rgba({r}, {g}, {b}, 0.3)"
+                                else:
+                                    cor_transparente = cor
+                                return f'background-color: {cor_transparente}; border-left: 3px solid {cor}; padding: 4px 8px;'
+                            styled_df_flat = styled_df_flat.map(style_categoria_flat, subset=[categoria_col_flat])
+                    
+                    # Aplica estilos de região se houver
+                    if regiao_col_for_style and regioes_cores:
+                        regiao_col_flat = col_mapping.get(regiao_col_for_style, None)
+                        if regiao_col_flat:
+                            def style_regiao_flat(val):
+                                if pd.isna(val):
+                                    return ''
+                                valor_str = str(val).strip()
+                                cor_hex = regioes_cores.get(valor_str, "#6c757d")
+                                cor_rgba = color_with_intensity(cor_hex, 0.0, min_alpha=0.18)
+                                return f'background-color: {cor_rgba}; padding: 4px 8px;'
+                            styled_df_flat = styled_df_flat.map(style_regiao_flat, subset=[regiao_col_flat])
+                    
+                    # Aplica formatação se houver
+                    if format_dict:
+                        format_dict_flat = {}
+                        for old_key, fmt in format_dict.items():
+                            new_key = col_mapping.get(old_key, old_key)
+                            format_dict_flat[new_key] = fmt
+                        if format_dict_flat:
+                            styled_df_flat = styled_df_flat.format(format_dict_flat, na_rep='')
+                    
+                    st.dataframe(styled_df_flat, use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhuma coluna encontrada nos dados.")
 
