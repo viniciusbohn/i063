@@ -4059,6 +4059,13 @@ def main():
         
         # DEBUG: Mostra total inicial
         total_inicial = len(df_startups_para_tabela)
+        
+        # Obtém os valores dos filtros do session_state (definidos no mapa)
+        regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
+        municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
+        categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
+        segmentos_filtro_tabela = st.session_state.get("filtro_segmentos", [])
+        
         with st.sidebar:
             st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
             st.info(f"🔍 DEBUG: Dados carregados diretamente do Google Sheets (aba 'Base | Atores MG')")
@@ -4080,12 +4087,6 @@ def main():
                     st.text(f"   • {cat}: {qtd}")
                 if len(contagem_inicial) > 10:
                     st.text(f"   ... e mais {len(contagem_inicial) - 10} categorias")
-        
-        # Obtém os valores dos filtros do session_state (definidos no mapa)
-        regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
-        municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
-        categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
-        segmentos_filtro_tabela = st.session_state.get("filtro_segmentos", [])
         
         # Aplica filtro de região
         if regiao_filtro_tabela != "Todas":
