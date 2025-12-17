@@ -2169,6 +2169,11 @@ def create_choropleth_map(df, df_atores=None):
     if 'nome' not in df_regions.columns and 'nome' in df_municipios.columns:
         df_regions['nome'] = df_municipios['nome']
     
+    # Normaliza código IBGE em ambos os DataFrames antes do merge
+    df_regions['codigo_ibge'] = normalize_codigo_ibge(df_regions['codigo_ibge'])
+    df_regions = df_regions[df_regions['codigo_ibge'].notna()]
+    df_regions['codigo_ibge'] = df_regions['codigo_ibge'].astype(str)
+    
     # Faz merge com dados da planilha (mantém TODOS os municípios de MG)
     # A planilha é a fonte de verdade para região e quantidades
     df_regions = df_regions.merge(
