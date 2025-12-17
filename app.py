@@ -2202,9 +2202,12 @@ def create_choropleth_map(df, df_atores=None):
                 break
         
         if coluna_categoria_atores and coluna_cidade_atores:
-            # Filtra apenas startups para contar
+            # Filtra apenas startups para contar E que têm cidade preenchida (não vazia)
             df_startups_para_contar = df_atores[
-                df_atores[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+                (df_atores[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup') &
+                (df_atores[coluna_cidade_atores].notna()) &
+                (df_atores[coluna_cidade_atores].astype(str).str.strip() != '') &
+                (df_atores[coluna_cidade_atores].astype(str).str.strip() != 'nan')
             ].copy()
             
             # Reagrega contagens de startups por município/região
@@ -2628,9 +2631,12 @@ def create_choropleth_map(df, df_atores=None):
                     break
             
             if coluna_categoria_atores and coluna_cidade_atores:
-                # Filtra apenas startups para contar
+                # Filtra apenas startups para contar E que têm cidade preenchida (não vazia)
                 df_startups_para_contar = df_atores_filtrado[
-                    df_atores_filtrado[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+                    (df_atores_filtrado[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup') &
+                    (df_atores_filtrado[coluna_cidade_atores].notna()) &
+                    (df_atores_filtrado[coluna_cidade_atores].astype(str).str.strip() != '') &
+                    (df_atores_filtrado[coluna_cidade_atores].astype(str).str.strip() != 'nan')
                 ].copy()
                 
                 # Reagrega contagens de startups por município/região
