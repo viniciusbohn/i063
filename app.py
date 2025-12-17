@@ -2165,6 +2165,39 @@ def create_choropleth_map(df, df_atores=None):
     # MANTÉM todos os municípios que têm código IBGE e município, mesmo que não tenham quantidades
     df_map = df_map.dropna(subset=[coluna_municipio, coluna_codigo_ibge])
     
+    # IMPORTANTE: Começa com TODOS os municípios de MG para garantir que todos apareçam
+    # Depois faz merge com dados da planilha para obter regiões e quantidades
+    df_municipios_normalizado = df_municipios.copy()
+    df_municipios_normalizado['codigo_ibge'] = normalize_codigo_ibge(df_municipios_normalizado['codigo_ibge'])
+    df_municipios_normalizado = df_municipios_normalizado[df_municipios_normalizado['codigo_ibge'].notna()]
+    df_municipios_normalizado['codigo_ibge'] = df_municipios_normalizado['codigo_ibge'].astype(str)
+    
+    # Normaliza código IBGE na planilha antes do merge
+    df_map['codigo_ibge'] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
+    df_map = df_map[df_map['codigo_ibge'].notna()]
+    df_map['codigo_ibge'] = df_map['codigo_ibge'].astype(str)
+    
+    # Seleciona colunas para merge
+    colunas_merge = ['codigo_ibge']
+    if 'nome' in df_municipios_normalizado.columns:
+        colunas_merge.append('nome')
+    if 'latitude' in df_municipios_normalizado.columns:
+        colunas_merge.append('latitude')
+    if 'longitude' in df_municipios_normalizado.columns:
+        colunas_merge.append('longitude')
+    
+    # Começa com TODOS os municípios de MG e faz merge LEFT com a planilha
+    # Isso garante que todos os municípios apareçam, mesmo que não estejam na planilha
+    df_regions = df_municipios_normalizado[colunas_merge].copy()
+    
+    # Faz merge LEFT: mantém TODOS os municípios de MG, adiciona dados da planilha quando disponível
+    df_regions = df_regions.merge(
+        df_map,
+        on='codigo_ibge',
+        how='left',
+        suffixes=('', '_planilha')
+    )
+    
     # Normaliza código IBGE se existir
     if coluna_codigo_ibge in df_map.columns:
         df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
@@ -2201,24 +2234,16 @@ def create_choropleth_map(df, df_atores=None):
     # A planilha já tem todos os municípios com suas regiões corretas
     df_regions = df_map.copy()
     
-    # Normaliza código IBGE na planilha
-    df_regions['codigo_ibge'] = normalize_codigo_ibge(df_regions['codigo_ibge'])
-    df_regions = df_regions[df_regions['codigo_ibge'].notna()]
-    df_regions['codigo_ibge'] = df_regions['codigo_ibge'].astype(str)
-    
-    # Faz merge com dados de municípios APENAS para obter coordenadas (latitude/longitude)
-    # Mantém TODOS os municípios da planilha (que já têm suas regiões corretas)
-    df_municipios_normalizado = df_municipios.copy()
-    df_municipios_normalizado['codigo_ibge'] = normalize_codigo_ibge(df_municipios_normalizado['codigo_ibge'])
-    df_municipios_normalizado = df_municipios_normalizado[df_municipios_normalizado['codigo_ibge'].notna()]
-    df_municipios_normalizado['codigo_ibge'] = df_municipios_normalizado['codigo_ibge'].astype(str)
-    
-    df_regions = df_regions.merge(
-        df_municipios_normalizado[colunas_merge],
-        on='codigo_ibge',
-        how='left',
-        suffixes=('', '_municipios')
-    )
+    # Preenche nome do município se não existir
+    if coluna_municipio not in df_regions.columns:
+        if 'nome' in df_regions.columns:
+            df_regions[coluna_municipio] = df_regions['nome']
+        elif 'nome_municipio' in df_regions.columns:
+            df_regions[coluna_municipio] = df_regions['nome_municipio']
+    else:
+        # Preenche valores faltantes com nome dos dados de municípios
+        if 'nome' in df_regions.columns:
+            df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
     
     # Preenche nome do município se não existir (vem da planilha ou dos dados de municípios)
     if coluna_municipio not in df_regions.columns:
@@ -2231,19 +2256,22 @@ def create_choropleth_map(df, df_atores=None):
         if 'nome' in df_regions.columns:
             df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
     
-    # A região DEVE vir da planilha - não deve ser None ou faltante
-    # Se a coluna de região não existe ou está vazia, há um problema
+    # A região DEVE vir da planilha
+    # Municípios que não estão na planilha não terão região - vamos preenchê-los com a região mais comum
     if coluna_regiao not in df_regions.columns:
         st.error(f"❌ Coluna de região '{coluna_regiao}' não encontrada após o merge. Verifique se a planilha 'Municípios e Regiões' tem a coluna de região.")
         return
     
-    # Garante que todos os municípios têm região (deve vir da planilha)
-    # A região DEVE estar na planilha - se não estiver, há um problema
+    # Para municípios sem região (que não estão na planilha), preenche com a região mais comum
     municipios_sem_regiao = df_regions[df_regions[coluna_regiao].isna() | (df_regions[coluna_regiao].astype(str).str.strip() == '')]
     if not municipios_sem_regiao.empty:
-        st.warning(f"⚠️ {len(municipios_sem_regiao)} municípios não têm região na planilha. Eles serão removidos do mapa.")
-        # Remove apenas municípios sem região (a planilha deve ter todos com região)
-        df_regions = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')]
+        # Preenche com a região mais comum da planilha
+        regiao_mais_comum = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')][coluna_regiao].mode()
+        if len(regiao_mais_comum) > 0:
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
+        else:
+            # Se não há nenhuma região na planilha, usa "Centro" como padrão
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
     
     # Preenche quantidades usando as colunas encontradas na planilha
     # Usa os nomes exatos mapeados
