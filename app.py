@@ -1153,22 +1153,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         if df is None:
             raise Exception("Não foi possível carregar dados de nenhum método")
         
-        # Avisa se parece que faltam dados
-        if len(df) < 2000:
-            st.warning(f"⚠️ ATENÇÃO: CSV carregado tem apenas {len(df)} linhas. A planilha pode ter mais linhas. Verifique se o Google Sheets está limitando a exportação.")
-        
-        # DEBUG: Salva o CSV bruto para verificação
-        if df is not None and len(df) > 0:
-            try:
-                import os
-                debug_dir = "debug_csv"
-                if not os.path.exists(debug_dir):
-                    os.makedirs(debug_dir)
-                csv_filename = f"{debug_dir}/csv_bruto_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
-                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
-                st.info(f"💾 CSV bruto salvo em: `{csv_filename}` (Total de linhas: {len(df)})")
-            except Exception as e:
-                st.warning(f"⚠️ Não foi possível salvar CSV de debug: {str(e)}")
+        # Avisa se parece que faltam dados (apenas para fallback CSV)
+        if len(df) < 2000 and not GSPREAD_AVAILABLE:
+            st.warning(f"⚠️ ATENÇÃO: CSV carregado tem apenas {len(df)} linhas. A planilha pode ter mais linhas. Configure a API do Google Sheets para carregar todos os dados.")
         
         # CORREÇÃO: Detecta e remove linhas problemáticas (dados concatenados)
         # O Google Sheets às vezes exporta com a primeira linha tendo todos os dados concatenados
@@ -1180,8 +1167,6 @@ def load_data_from_sheets(sheet_name, force_reload=False):
             if len(primeira_col_primeira_linha) > 200 and "Nome do Ator" in primeira_col_primeira_linha:
                 # PROBLEMA: O Google Sheets exportou tudo concatenado nesta linha
                 # Remove essa linha problemática
-                if linhas_removidas == 0:
-                    st.warning("⚠️ Detectado problema na exportação do Google Sheets: linha(s) com dados concatenados. Removendo...")
                 df = df.iloc[1:].reset_index(drop=True)
                 linhas_removidas += 1
             else:
@@ -1258,18 +1243,6 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
         
-        # DEBUG: Salva CSV após remoção de linhas vazias
-        if df is not None and len(df) > 0:
-            try:
-                import os
-                debug_dir = "debug_csv"
-                if not os.path.exists(debug_dir):
-                    os.makedirs(debug_dir)
-                csv_filename = f"{debug_dir}/csv_apos_limpeza_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
-                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
-            except Exception:
-                pass  # Ignora erro ao salvar debug
-        
         # Remove espaços dos nomes das colunas (importante!)
         # IMPORTANTE: Verifica se as colunas ainda são numéricas (não foram nomeadas)
         if len(df.columns) > 0:
@@ -1297,27 +1270,6 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 except Exception:
                     # Se houver erro, apenas converte para string sem strip
                     df.columns = [str(col) if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
-        
-        # DEBUG: Salva CSV final após processamento
-        if df is not None and len(df) > 0:
-            try:
-                import os
-                debug_dir = "debug_csv"
-                if not os.path.exists(debug_dir):
-                    os.makedirs(debug_dir)
-                csv_filename = f"{debug_dir}/csv_final_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
-                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
-                st.info(f"💾 CSV final salvo em: `{csv_filename}` (Total de linhas: {len(df)})")
-                
-                # Mostra categorias únicas encontradas
-                if 'Categoria' in df.columns:
-                    categorias_unicas = df['Categoria'].astype(str).str.strip().unique()
-                    st.info(f"📊 Categorias únicas encontradas no CSV final: {len(categorias_unicas)}")
-                    st.text(f"   {', '.join(sorted(categorias_unicas)[:20])}")
-                    if len(categorias_unicas) > 20:
-                        st.text(f"   ... e mais {len(categorias_unicas) - 20} categorias")
-            except Exception as e:
-                st.warning(f"⚠️ Não foi possível salvar CSV final de debug: {str(e)}")
         
         # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
         # IMPORTANTE: Seja conservador - só remove se realmente estiver vazio
@@ -2769,7 +2721,7 @@ def create_choropleth_map(df, df_atores=None):
         df_regiao['codigo_ibge_str'] = df_regiao['codigo_ibge'].astype(str)
         df_regiao['tem_match'] = df_regiao['codigo_ibge_str'].apply(lambda x: x in features_by_code)
         
-        # Coleta municípios sem match para debug
+        # Coleta municípios sem match (para logging interno)
         sem_match = df_regiao[~df_regiao['tem_match']]
         if not sem_match.empty:
             municipios_sem_match.extend(sem_match[[coluna_municipio, 'codigo_ibge']].values.tolist())
@@ -4317,136 +4269,59 @@ def main():
         # Aplica os mesmos filtros do mapa aos dados das startups
         df_startups_para_tabela = df_startups_filtered.copy()
         
-        # DEBUG: Mostra total inicial
-        total_inicial = len(df_startups_para_tabela)
-        
         # Obtém os valores dos filtros do session_state (definidos no mapa)
         regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
         municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
         categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
         segmentos_filtro_tabela = st.session_state.get("filtro_segmentos", [])
         
-        # DEBUG: Mostra primeiras linhas dos dados carregados para verificar se estão corretos
-        with st.expander("🔍 DEBUG: Primeiras Linhas dos Dados Carregados", expanded=True):
-            st.info(f"**Total de registros carregados:** {total_inicial}")
-            st.info(f"**Colunas disponíveis:** {list(df_startups_para_tabela.columns)}")
-            st.info("**Primeiras 10 linhas dos dados:**")
-            st.dataframe(df_startups_para_tabela.head(10))
-        
-        with st.sidebar:
-            st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
-            st.info(f"🔍 DEBUG: Dados carregados diretamente do Google Sheets (aba 'Base | Atores MG')")
-            st.info(f"🔍 DEBUG: Filtros ativos - Região: {regiao_filtro_tabela}, Município: {municipio_filtro_tabela}, Categorias: {len(categorias_filtro_tabela) if categorias_filtro_tabela else 0}, Segmentos: {len(segmentos_filtro_tabela) if segmentos_filtro_tabela else 0}")
-            
-            # DEBUG: Mostra distribuição por categoria ANTES de qualquer filtro
-            coluna_categoria_debug = None
-            possiveis_nomes_categoria_debug = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
-            for col in df_startups_para_tabela.columns:
-                col_lower = str(col).lower().strip()
-                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria_debug):
-                    coluna_categoria_debug = col
-                    break
-            
-            if coluna_categoria_debug:
-                contagem_inicial = df_startups_para_tabela[coluna_categoria_debug].astype(str).str.strip().value_counts()
-                st.info(f"🔍 DEBUG: Distribuição por categoria ANTES dos filtros:")
-                for cat, qtd in contagem_inicial.head(10).items():
-                    st.text(f"   • {cat}: {qtd}")
-                if len(contagem_inicial) > 10:
-                    st.text(f"   ... e mais {len(contagem_inicial) - 10} categorias")
-        
         # Aplica filtro de região
         if regiao_filtro_tabela != "Todas":
-                # DEBUG: Mostra total antes do filtro de região
-                total_antes_regiao = len(df_startups_para_tabela)
-                with st.sidebar:
-                    st.info(f"🔍 DEBUG: Registros antes do filtro de região: {total_antes_regiao}")
-                
-                # Procura coluna de região nas startups (com várias variações)
-                coluna_regiao_startups = None
-                possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
-                                         'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
-                for col in df_startups_para_tabela.columns:
-                    col_lower = col.lower().strip()
-                    if any(nome in col_lower for nome in possiveis_nomes_regiao):
-                        coluna_regiao_startups = col
-                        break
-                
-                if coluna_regiao_startups:
-                    df_startups_para_tabela = df_startups_para_tabela[
-                        df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
-                    ]
-                    
-                    # DEBUG: Mostra total depois do filtro de região
-                    total_depois_regiao = len(df_startups_para_tabela)
-                    with st.sidebar:
-                        st.info(f"🔍 DEBUG: Registros depois do filtro de região: {total_depois_regiao} (perdidos: {total_antes_regiao - total_depois_regiao})")
+            # Procura coluna de região nas startups (com várias variações)
+            coluna_regiao_startups = None
+            possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
+                                     'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
+            for col in df_startups_para_tabela.columns:
+                col_lower = col.lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_regiao):
+                    coluna_regiao_startups = col
+                    break
+            
+            if coluna_regiao_startups:
+                df_startups_para_tabela = df_startups_para_tabela[
+                    df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
+                ]
         
         # Aplica filtro de município
         if municipio_filtro_tabela != "Todos":
-                # DEBUG: Mostra total antes do filtro de município
-                total_antes_municipio = len(df_startups_para_tabela)
-                with st.sidebar:
-                    st.info(f"🔍 DEBUG: Registros antes do filtro de município: {total_antes_municipio}")
-                
-                # Procura coluna de município/cidade nas startups
-                coluna_municipio_startups = None
-                possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
-                for col in df_startups_para_tabela.columns:
-                    col_lower = col.lower().strip()
-                    if any(nome in col_lower for nome in possiveis_nomes_municipio):
-                        coluna_municipio_startups = col
-                        break
-                
-                if coluna_municipio_startups:
-                    df_startups_para_tabela = df_startups_para_tabela[
-                        df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
-                    ]
-                    
-                    # DEBUG: Mostra total depois do filtro de município
-                    total_depois_municipio = len(df_startups_para_tabela)
-                    with st.sidebar:
-                        st.info(f"🔍 DEBUG: Registros depois do filtro de município: {total_depois_municipio} (perdidos: {total_antes_municipio - total_depois_municipio})")
+            # Procura coluna de município/cidade nas startups
+            coluna_municipio_startups = None
+            possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
+            for col in df_startups_para_tabela.columns:
+                col_lower = col.lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_municipio):
+                    coluna_municipio_startups = col
+                    break
+            
+            if coluna_municipio_startups:
+                df_startups_para_tabela = df_startups_para_tabela[
+                    df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
+                ]
         
         # Aplica filtro de categoria
         # IMPORTANTE: Se não há filtros de categoria selecionados, mostra TODOS os dados (não aplica filtro)
         if categorias_filtro_tabela and len(categorias_filtro_tabela) > 0:
             # Há filtros de categoria selecionados - aplica o filtro
-                # DEBUG: Mostra total antes do filtro de categoria
-                total_antes_categoria = len(df_startups_para_tabela)
-                with st.sidebar:
-                    st.info(f"🔍 DEBUG: Registros antes do filtro de categoria: {total_antes_categoria}")
-                
-                # Procura coluna de categoria nas startups
-                coluna_categoria_startups = None
-                possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
-                for col in df_startups_para_tabela.columns:
-                    col_lower = col.lower().strip()
-                    if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
-                        coluna_categoria_startups = col
-                        break
-                
-                # DEBUG: Mostra qual coluna foi encontrada
-                if coluna_categoria_startups:
-                    with st.sidebar:
-                        st.info(f"🔍 DEBUG: Coluna de categoria encontrada: '{coluna_categoria_startups}'")
-                        
-                        # DEBUG: Mostra valores únicos na coluna de categoria
-                        valores_unicos = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().unique()
-                        st.info(f"🔍 DEBUG: Valores únicos na coluna '{coluna_categoria_startups}': {sorted(valores_unicos)[:10]}... (Total: {len(valores_unicos)} valores únicos)")
-                        
-                        # DEBUG: Mostra quantidade total por categoria ANTES do filtro
-                        contagem_por_categoria = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().value_counts()
-                        st.info(f"🔍 DEBUG: Quantidade total por categoria ANTES do filtro:")
-                        for cat, qtd in contagem_por_categoria.head(15).items():
-                            st.text(f"   • {cat}: {qtd}")
-                        if len(contagem_por_categoria) > 15:
-                            st.text(f"   ... e mais {len(contagem_por_categoria) - 15} categorias")
-                        
-                        # DEBUG: Mostra categorias que estão sendo filtradas
-                        st.info(f"🔍 DEBUG: Categorias filtradas: {categorias_filtro_tabela}")
-                
-                if coluna_categoria_startups:
+            # Procura coluna de categoria nas startups
+            coluna_categoria_startups = None
+            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+            for col in df_startups_para_tabela.columns:
+                col_lower = col.lower().strip()
+                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
+                    coluna_categoria_startups = col
+                    break
+            
+            if coluna_categoria_startups:
                     # Mapeia nomes do filtro do mapa para valores reais na planilha
                     # Cada filtro do mapa mapeia para as categorias específicas que devem aparecer na tabela
                     mapeamento_categorias = {
@@ -4708,12 +4583,6 @@ def main():
                     
                     # Combina startups filtradas com outros atores (não afetados)
                     df_startups_para_tabela = pd.concat([df_startups_filtrado, df_outros_atores], ignore_index=True)
-                    
-                    # DEBUG: Mostra total depois do filtro de segmentos
-                    total_depois_segmentos = len(df_startups_para_tabela)
-                    perdidos_segmentos = total_antes_segmentos - total_depois_segmentos
-                    with st.sidebar:
-                        st.info(f"🔍 DEBUG: Registros depois do filtro de segmentos: {total_depois_segmentos} (perdidos: {perdidos_segmentos})")
                 else:
                     # Se não encontrou coluna de categoria, aplica filtro em todos (menos ideal)
                     df_startups_para_tabela = df_startups_para_tabela[
@@ -4732,12 +4601,6 @@ def main():
         
         # Filtra os dados baseado na pesquisa
         df_tabela_filtrado = df_startups_para_tabela.copy()
-        
-        # DEBUG: Mostra total antes do filtro de texto
-        total_antes_texto = len(df_tabela_filtrado)
-        if texto_pesquisa and texto_pesquisa.strip():
-            with st.sidebar:
-                st.info(f"🔍 DEBUG: Registros antes do filtro de texto: {total_antes_texto}")
         
         if texto_pesquisa and texto_pesquisa.strip():
             texto_busca = texto_pesquisa.strip()
@@ -4772,12 +4635,6 @@ def main():
                     regex=False
                 )
                 df_tabela_filtrado = df_tabela_filtrado[mask]
-                
-                # DEBUG: Mostra total depois do filtro de texto
-                total_depois_texto = len(df_tabela_filtrado)
-                perdidos_texto = total_antes_texto - total_depois_texto
-                with st.sidebar:
-                    st.info(f"🔍 DEBUG: Registros depois do filtro de texto: {total_depois_texto} (perdidos: {perdidos_texto})")
             else:
                 # Se não encontrou coluna de nome, tenta buscar em todas as colunas de texto
                 mask = pd.Series([False] * len(df_tabela_filtrado))
@@ -4790,22 +4647,6 @@ def main():
                             regex=False
                         )
                 df_tabela_filtrado = df_tabela_filtrado[mask]
-                
-                # DEBUG: Mostra total depois do filtro de texto
-                total_depois_texto = len(df_tabela_filtrado)
-                perdidos_texto = total_antes_texto - total_depois_texto
-                with st.sidebar:
-                    st.info(f"🔍 DEBUG: Registros depois do filtro de texto: {total_depois_texto} (perdidos: {perdidos_texto})")
-        
-        # DEBUG: Mostra total final e compara com o esperado
-        total_final = len(df_tabela_filtrado)
-        total_esperado = 5140
-        diferenca = total_esperado - total_final
-        with st.sidebar:
-            if diferenca > 0:
-                st.warning(f"⚠️ DEBUG: Total final: {total_final} (esperado: {total_esperado}, faltam: {diferenca})")
-            else:
-                st.success(f"✅ DEBUG: Total final de registros na tabela: {total_final}")
         
         # Tabela de dados (usa dados filtrados)
         create_data_table(df_tabela_filtrado)
