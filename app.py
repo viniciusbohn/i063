@@ -2182,16 +2182,69 @@ def create_choropleth_map(df, df_atores=None):
     else:
         df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
     
-    # Para municípios sem região na planilha, usa uma região padrão baseada na maioria dos municípios próximos
-    # ou simplesmente usa a primeira região disponível como fallback
+    # Para municípios sem região na planilha, tenta encontrar a região pelo nome do município
+    # Cria um mapeamento de municípios para regiões baseado nos dados da planilha
     if coluna_regiao in df_regions.columns:
-        # Preenche regiões faltantes com a região mais comum (ou primeira disponível)
-        regiao_mais_comum = df_regions[coluna_regiao].mode()
-        if len(regiao_mais_comum) > 0:
-            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
-        else:
-            # Se não houver região na planilha, usa uma região padrão
-            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
+        # Cria dicionário de mapeamento: nome_municipio -> regiao
+        mapeamento_municipio_regiao = {}
+        if coluna_municipio in df_map.columns and coluna_regiao in df_map.columns:
+            for _, row in df_map.dropna(subset=[coluna_municipio, coluna_regiao]).iterrows():
+                municipio_nome = str(row[coluna_municipio]).strip().lower()
+                regiao_valor = str(row[coluna_regiao]).strip()
+                if municipio_nome and regiao_valor:
+                    mapeamento_municipio_regiao[municipio_nome] = regiao_valor
+        
+        # Preenche regiões faltantes usando o mapeamento
+        def obter_regiao(row):
+            if pd.notna(row.get(coluna_regiao)):
+                return row[coluna_regiao]
+            # Tenta encontrar pelo nome do município
+            municipio_nome = str(row.get(coluna_municipio, '')).strip().lower()
+            if municipio_nome in mapeamento_municipio_regiao:
+                return mapeamento_municipio_regiao[municipio_nome]
+            # Se não encontrar, retorna None (será preenchido depois)
+            return None
+        
+        # Aplica o mapeamento
+        regioes_mapeadas = df_regions.apply(obter_regiao, axis=1)
+        df_regions[coluna_regiao] = regioes_mapeadas
+        
+        # Para municípios que ainda não têm região, tenta inferir pela proximidade geográfica
+        # ou usa a região mais comum como último recurso
+        municipios_sem_regiao = df_regions[df_regions[coluna_regiao].isna()]
+        if not municipios_sem_regiao.empty:
+            # Tenta encontrar região por proximidade geográfica (municípios próximos tendem a estar na mesma região)
+            for idx, row in municipios_sem_regiao.iterrows():
+                lat = row.get('latitude')
+                lon = row.get('longitude')
+                if pd.notna(lat) and pd.notna(lon):
+                    # Encontra municípios próximos (dentro de 0.5 grau) que têm região
+                    municipios_proximos = df_regions[
+                        (df_regions[coluna_regiao].notna()) &
+                        (df_regions['latitude'].notna()) &
+                        (df_regions['longitude'].notna())
+                    ].copy()
+                    if not municipios_proximos.empty:
+                        # Calcula distância aproximada
+                        municipios_proximos['dist'] = (
+                            (municipios_proximos['latitude'] - lat) ** 2 +
+                            (municipios_proximos['longitude'] - lon) ** 2
+                        ) ** 0.5
+                        # Pega o município mais próximo
+                        mais_proximo = municipios_proximos.nsmallest(1, 'dist')
+                        if not mais_proximo.empty and pd.notna(mais_proximo.iloc[0][coluna_regiao]):
+                            df_regions.loc[idx, coluna_regiao] = mais_proximo.iloc[0][coluna_regiao]
+                            continue
+                
+                # Se não conseguiu inferir, usa a região mais comum
+                regiao_mais_comum = df_regions[coluna_regiao].mode()
+                if len(regiao_mais_comum) > 0:
+                    df_regions.loc[idx, coluna_regiao] = regiao_mais_comum.iloc[0]
+                else:
+                    df_regions.loc[idx, coluna_regiao] = "Centro"
+        
+        # Garante que não há valores NaN restantes
+        df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(df_regions[coluna_regiao].mode().iloc[0] if len(df_regions[coluna_regiao].mode()) > 0 else "Centro")
     else:
         # Se não houver coluna de região na planilha, cria uma padrão
         df_regions[coluna_regiao] = "Centro"
