@@ -2133,23 +2133,36 @@ def create_choropleth_map(df, df_atores=None):
             st.error("❌ Não foi possível obter códigos IBGE a partir dos nomes dos municípios.")
             return
 
-    # Dados da planilha normalizados
-    colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao]
-    if coluna_qtd_startups in df.columns:
-        colunas_necessarias.append(coluna_qtd_startups)
-    if coluna_qtd_empresas_ancora in df.columns:
-        colunas_necessarias.append(coluna_qtd_empresas_ancora)
-    if coluna_qtd_fundos_e_investidores in df.columns:
-        colunas_necessarias.append(coluna_qtd_fundos_e_investidores)
-    if coluna_qtd_universidades_icts in df.columns:
-        colunas_necessarias.append(coluna_qtd_universidades_icts)
-    if coluna_qtd_orgaos in df.columns:
-        colunas_necessarias.append(coluna_qtd_orgaos)
-    if coluna_qtd_hubs_incubadoras_parquestecnologicos in df.columns:
-        colunas_necessarias.append(coluna_qtd_hubs_incubadoras_parquestecnologicos)
+    # USA APENAS OS DADOS DA PLANILHA "Municípios e Regiões"
+    # Busca as colunas de quantidade pelos nomes exatos mencionados pelo usuário
+    colunas_qtd_exatas = ['qtd_startups', 'qtd_empresas_ancora', 'qtd_fundos_e_investidores', 
+                          'qtd_universidades_icts', 'qtd_orgaos', 'qtd_hubs_incubadoras_parquestecnologicos']
     
+    # Mapeia nomes exatos para colunas encontradas na planilha
+    colunas_qtd_encontradas = {}
+    for col_qtd_exata in colunas_qtd_exatas:
+        # Tenta encontrar exatamente
+        if col_qtd_exata in df.columns:
+            colunas_qtd_encontradas[col_qtd_exata] = col_qtd_exata
+        else:
+            # Busca por similaridade
+            for col in df.columns:
+                col_lower = str(col).lower().strip()
+                if col_qtd_exata.lower() in col_lower or col_lower in col_qtd_exata.lower():
+                    colunas_qtd_encontradas[col_qtd_exata] = col
+                    break
+    
+    # Seleciona colunas necessárias da planilha
+    colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao]
+    for col_qtd_exata, col_encontrada in colunas_qtd_encontradas.items():
+        if col_encontrada and col_encontrada not in colunas_necessarias:
+            colunas_necessarias.append(col_encontrada)
+    
+    # Cria DataFrame apenas com dados da planilha
     df_map = df[colunas_necessarias].copy()
-    # Remove apenas municípios sem código IBGE ou sem município (mas mantém mesmo sem região, pois será preenchida)
+    
+    # Remove apenas municípios sem código IBGE ou sem município
+    # MANTÉM todos os municípios que têm código IBGE e município, mesmo que não tenham quantidades
     df_map = df_map.dropna(subset=[coluna_municipio, coluna_codigo_ibge])
     
     # Normaliza código IBGE se existir
@@ -2232,55 +2245,42 @@ def create_choropleth_map(df, df_atores=None):
         # Remove apenas municípios sem região (a planilha deve ter todos com região)
         df_regions = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')]
     
-    # Preenche quantidades com 0 se não existirem
+    # Preenche quantidades usando as colunas encontradas na planilha
+    # Usa os nomes exatos mapeados
+    for col_qtd_exata, col_encontrada in colunas_qtd_encontradas.items():
+        if col_encontrada and col_encontrada in df_regions.columns:
+            df_regions[col_encontrada] = pd.to_numeric(df_regions[col_encontrada], errors='coerce').fillna(0).astype(int)
+        else:
+            # Se não encontrou, cria coluna com zeros
+            df_regions[col_qtd_exata] = 0
+    
+    # Atualiza variáveis para usar as colunas encontradas
+    coluna_qtd_startups = colunas_qtd_encontradas.get('qtd_startups', 'qtd_startups')
+    coluna_qtd_empresas_ancora = colunas_qtd_encontradas.get('qtd_empresas_ancora', 'qtd_empresas_ancora')
+    coluna_qtd_fundos_e_investidores = colunas_qtd_encontradas.get('qtd_fundos_e_investidores', 'qtd_fundos_e_investidores')
+    coluna_qtd_universidades_icts = colunas_qtd_encontradas.get('qtd_universidades_icts', 'qtd_universidades_icts')
+    coluna_qtd_orgaos = colunas_qtd_encontradas.get('qtd_orgaos', 'qtd_orgaos')
+    coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_encontradas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
+    
+    # Garante que todas as colunas existem (cria com zeros se não existirem)
     if coluna_qtd_startups not in df_regions.columns:
         df_regions[coluna_qtd_startups] = 0
-    else:
-        df_regions[coluna_qtd_startups] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
-    
-    # Preenche outras colunas de quantidade com 0 se não existirem
-    for col_qtd in [coluna_qtd_empresas_ancora, coluna_qtd_fundos_e_investidores, 
-                    coluna_qtd_universidades_icts, coluna_qtd_orgaos, 
-                    coluna_qtd_hubs_incubadoras_parquestecnologicos]:
-        if col_qtd and col_qtd not in df_regions.columns:
-            df_regions[col_qtd] = 0
-        elif col_qtd:
-            df_regions[col_qtd] = pd.to_numeric(df_regions[col_qtd], errors='coerce').fillna(0).astype(int)
+    if coluna_qtd_empresas_ancora not in df_regions.columns:
+        df_regions[coluna_qtd_empresas_ancora] = 0
+    if coluna_qtd_fundos_e_investidores not in df_regions.columns:
+        df_regions[coluna_qtd_fundos_e_investidores] = 0
+    if coluna_qtd_universidades_icts not in df_regions.columns:
+        df_regions[coluna_qtd_universidades_icts] = 0
+    if coluna_qtd_orgaos not in df_regions.columns:
+        df_regions[coluna_qtd_orgaos] = 0
+    if coluna_qtd_hubs_incubadoras_parquestecnologicos not in df_regions.columns:
+        df_regions[coluna_qtd_hubs_incubadoras_parquestecnologicos] = 0
     
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
     
-    # Mapeia nomes das colunas de quantidade encontradas para variáveis padrão
-    # Isso garante que o código abaixo funcione mesmo com nomes ligeiramente diferentes
-    colunas_qtd_mapeadas = {}
-    for col_qtd_nome in ['qtd_startups', 'qtd_empresas_ancora', 'qtd_fundos_e_investidores', 
-                         'qtd_universidades_icts', 'qtd_orgaos', 'qtd_hubs_incubadoras_parquestecnologicos']:
-        for col in df_regions.columns:
-            col_lower = str(col).lower().strip()
-            if col_qtd_nome.lower() in col_lower or col_lower in col_qtd_nome.lower():
-                colunas_qtd_mapeadas[col_qtd_nome] = col
-                break
-        if col_qtd_nome not in colunas_qtd_mapeadas:
-            # Se não encontrou, cria coluna com zeros
-            df_regions[col_qtd_nome] = 0
-            colunas_qtd_mapeadas[col_qtd_nome] = col_qtd_nome
-    
-    # Atualiza variáveis para usar as colunas encontradas
-    coluna_qtd_startups = colunas_qtd_mapeadas.get('qtd_startups', 'qtd_startups')
-    coluna_qtd_empresas_ancora = colunas_qtd_mapeadas.get('qtd_empresas_ancora', 'qtd_empresas_ancora')
-    coluna_qtd_fundos_e_investidores = colunas_qtd_mapeadas.get('qtd_fundos_e_investidores', 'qtd_fundos_e_investidores')
-    coluna_qtd_universidades_icts = colunas_qtd_mapeadas.get('qtd_universidades_icts', 'qtd_universidades_icts')
-    coluna_qtd_orgaos = colunas_qtd_mapeadas.get('qtd_orgaos', 'qtd_orgaos')
-    coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_mapeadas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
-    
     # NÃO recalcula dos atores - usa APENAS os dados da planilha
     # As quantidades já vêm da planilha "Municípios e Regiões"
-    # Garante que todas as colunas de quantidade estão preenchidas com valores numéricos
-    for col_qtd_nome, col_qtd_encontrada in colunas_qtd_mapeadas.items():
-        if col_qtd_encontrada in df_regions.columns:
-            df_regions[col_qtd_encontrada] = pd.to_numeric(df_regions[col_qtd_encontrada], errors='coerce').fillna(0).astype(int)
-        else:
-            df_regions[col_qtd_nome] = 0
     
     # Cria coluna count usando as quantidades da planilha
     # Por padrão, usa qtd_startups (será recalculada dinamicamente baseada nas categorias selecionadas)
