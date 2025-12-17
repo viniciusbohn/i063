@@ -2255,17 +2255,31 @@ def create_choropleth_map(df, df_atores=None):
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
     
-    # Usa as colunas de quantidade da planilha como fonte principal
-    # Só recalcula a partir dos dados de atores se as colunas da planilha estiverem vazias ou não existirem
-    # Verifica se as colunas de quantidade da planilha têm dados válidos
-    tem_dados_planilha = False
-    if coluna_qtd_startups in df_regions.columns:
-        # Verifica se há pelo menos alguns valores não-zero na planilha
-        if df_regions[coluna_qtd_startups].notna().any() and (df_regions[coluna_qtd_startups] > 0).any():
-            tem_dados_planilha = True
+    # Mapeia nomes das colunas de quantidade encontradas para variáveis padrão
+    # Isso garante que o código abaixo funcione mesmo com nomes ligeiramente diferentes
+    colunas_qtd_mapeadas = {}
+    for col_qtd_nome in ['qtd_startups', 'qtd_empresas_ancora', 'qtd_fundos_e_investidores', 
+                         'qtd_universidades_icts', 'qtd_orgaos', 'qtd_hubs_incubadoras_parquestecnologicos']:
+        for col in df_regions.columns:
+            col_lower = str(col).lower().strip()
+            if col_qtd_nome.lower() in col_lower or col_lower in col_qtd_nome.lower():
+                colunas_qtd_mapeadas[col_qtd_nome] = col
+                break
+        if col_qtd_nome not in colunas_qtd_mapeadas:
+            # Se não encontrou, cria coluna com zeros
+            df_regions[col_qtd_nome] = 0
+            colunas_qtd_mapeadas[col_qtd_nome] = col_qtd_nome
     
-    # Só recalcula dos atores se não houver dados na planilha
-    if not tem_dados_planilha and df_atores is not None and not df_atores.empty:
+    # Atualiza variáveis para usar as colunas encontradas
+    coluna_qtd_startups = colunas_qtd_mapeadas.get('qtd_startups', 'qtd_startups')
+    coluna_qtd_empresas_ancora = colunas_qtd_mapeadas.get('qtd_empresas_ancora', 'qtd_empresas_ancora')
+    coluna_qtd_fundos_e_investidores = colunas_qtd_mapeadas.get('qtd_fundos_e_investidores', 'qtd_fundos_e_investidores')
+    coluna_qtd_universidades_icts = colunas_qtd_mapeadas.get('qtd_universidades_icts', 'qtd_universidades_icts')
+    coluna_qtd_orgaos = colunas_qtd_mapeadas.get('qtd_orgaos', 'qtd_orgaos')
+    coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_mapeadas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
+    
+    # NÃO recalcula dos atores - usa APENAS os dados da planilha
+    # As quantidades já vêm da planilha "Municípios e Regiões"
         # Procura colunas nos dados de atores
         coluna_categoria_atores = None
         possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
@@ -2334,9 +2348,7 @@ def create_choropleth_map(df, df_atores=None):
                     df_regions.loc[idx, coluna_qtd_startups] = 0
     
     # Cria coluna count usando as quantidades da planilha
-    # A coluna 'count' será calculada dinamicamente baseada nas categorias selecionadas
-    # Por padrão, usa qtd_startups se disponível
-    # IMPORTANTE: Garante que todos os municípios tenham count (mesmo que seja 0)
+    # Por padrão, usa qtd_startups (será recalculada dinamicamente baseada nas categorias selecionadas)
     if coluna_qtd_startups in df_regions.columns:
         df_regions['count'] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
     else:
