@@ -1121,15 +1121,12 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                         if primeira_col in df.columns:
                             mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
                             df = df[mask]
-                    # Marca método usado (debug leve)
-                    st.session_state["_dados_origem"] = f"gspread:{sheet_name}"
+                    # (debug removido)
                     return df
                     
             except FileNotFoundError:
-                st.session_state["_dados_origem"] = "csv:fallback (credentials not found)"
                 pass  # Silenciosamente usa fallback CSV
             except Exception:
-                st.session_state["_dados_origem"] = "csv:fallback (gspread error)"
                 pass  # Silenciosamente usa fallback CSV
         
         # MÉTODO 2: Fallback para export CSV (pode ter limitação de ~2000 linhas)
@@ -1383,9 +1380,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
 @st.cache_data(ttl=300)  # Cache por 5 minutos para permitir atualizações
 def load_data_municipios_regioes(force_reload=False):
     """
-    Carrega dados da aba "Municípios e Regiões" para o mapa
+    Carrega dados da aba "Municipios e Regioes" para o mapa
     """
-    return load_data_from_sheets("Municípios e Regiões", force_reload)
+    return load_data_from_sheets("Municipios e Regioes", force_reload)
 
 
 @st.cache_data(ttl=300)  # Cache por 5 minutos para permitir atualizações
@@ -2373,11 +2370,7 @@ def create_choropleth_map(df, df_atores=None):
             # Se não encontrou a coluna na planilha, cria coluna com zeros para todos os municípios
             df_regions[col_qtd_exata] = 0
     
-    # Debug temporário: verifica se Uberlândia tem os valores corretos
-    if coluna_municipio in df_regions.columns:
-        uberlandia = df_regions[df_regions[coluna_municipio].astype(str).str.strip().str.lower() == 'uberlândia']
-        if not uberlandia.empty:
-            st.info(f"🔍 Debug: Uberlândia encontrada. Colunas de quantidade: {[col for col in df_regions.columns if 'qtd' in col.lower()]}. Valores: qtd_startups={uberlandia[coluna_qtd_startups].iloc[0] if coluna_qtd_startups in uberlandia.columns else 'N/A'}")
+    # (debug removido)
     
     # Atualiza variáveis para usar as colunas encontradas
     # IMPORTANTE: Usa o nome exato da coluna encontrada na planilha
@@ -2388,9 +2381,7 @@ def create_choropleth_map(df, df_atores=None):
     coluna_qtd_orgaos = colunas_qtd_encontradas.get('qtd_orgaos', 'qtd_orgaos')
     coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_encontradas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
     
-    # Debug: mostra quais colunas foram encontradas
-    st.info(f"🔍 Colunas de quantidade encontradas: {colunas_qtd_encontradas}")
-    st.info(f"🔍 Coluna qtd_startups a ser usada: '{coluna_qtd_startups}'")
+    # (debug removido)
     
     # Garante que todas as colunas existem (cria com zeros se não existirem)
     # Isso é importante para municípios que não estão na planilha
