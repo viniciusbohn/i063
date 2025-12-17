@@ -1000,8 +1000,19 @@ def load_data_from_sheets(sheet_name, force_reload=False):
     Usa API do Google Sheets (gspread) se disponível, caso contrário usa export CSV
     """
     try:
-        # ID correto da planilha (observação: já tivemos bug por troca de caractere aqui)
-        sheet_id = "104LamJgsPmwAldSBUOSsAHXo4m356by44VnGgk2avk"
+        # ID da planilha
+        # Em produção já vimos variações/typos nesse ID; para não derrubar o app,
+        # tentamos uma lista de candidatos (inclui override via env/secrets).
+        import os as os_module
+        sheet_id_env = os_module.getenv("GOOGLE_SHEET_ID") or os_module.getenv("SHEET_ID")
+        sheet_id_candidates = [
+            sheet_id_env,
+            # candidato "AHXo..." (mais recente)
+            "104LamJgsPmwAldSBUOSsAHXo4m356by44VnGgk2avk",
+            # candidato "AHfXo..." (já apareceu funcionando em versões anteriores)
+            "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk",
+        ]
+        sheet_id_candidates = [s for s in sheet_id_candidates if isinstance(s, str) and s.strip()]
         
         # MÉTODO 1: Tenta usar API do Google Sheets (sem limitação de linhas)
         if GSPREAD_AVAILABLE:
@@ -1020,8 +1031,19 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     creds = Credentials.from_service_account_file(credentials_path, scopes=scope)
                     client = gspread.authorize(creds)
                     
-                    # Abre a planilha
-                    spreadsheet = client.open_by_key(sheet_id)
+                    # Abre a planilha (tenta candidatos até funcionar)
+                    spreadsheet = None
+                    last_err = None
+                    for sid in sheet_id_candidates:
+                        try:
+                            spreadsheet = client.open_by_key(sid)
+                            # guarda qual id funcionou para o fallback CSV também
+                            sheet_id_env = sid
+                            break
+                        except Exception as e:
+                            last_err = e
+                    if spreadsheet is None:
+                        raise last_err if last_err else Exception("Não foi possível abrir a planilha por ID")
                     
                     # Abre a aba
                     try:
@@ -1097,40 +1119,50 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Adiciona parâmetros para garantir que pega todos os dados
         try:
             encoded_sheet_name = quote(sheet_name, safe="")
-            # Tenta com range grande para pegar todas as linhas
-            sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z10000"
-            sheet_url_used = sheet_url
-            # Tenta diferentes encodings para resolver problemas com caracteres especiais
-            # IMPORTANTE: header=None inicialmente para não perder a primeira linha
-            try:
-                df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
-            except:
+            last_err = None
+            for sid in sheet_id_candidates:
+                # Tenta com range grande para pegar todas as linhas
+                sheet_url = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z10000"
+                sheet_url_used = sheet_url
                 try:
-                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
-                except:
-                    df = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
-            
-            # Se o método 1 funcionou mas tem poucas linhas, tenta sem range
-            if df is not None and len(df) < 2000:
-                try:
-                    sheet_url2 = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+                    # IMPORTANTE: header=None inicialmente para não perder a primeira linha
                     try:
-                        df2 = pd.read_csv(sheet_url2, encoding='utf-8', header=None)
-                        if len(df2) > len(df):
-                            df = df2
-                            sheet_url_used = sheet_url2
-                    except:
-                        pass
-                except:
-                    pass
-                    
+                        df_try = pd.read_csv(sheet_url, encoding='utf-8', header=None)
+                    except Exception:
+                        try:
+                            df_try = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                        except Exception:
+                            df_try = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
+                    df = df_try
+
+                    # Se o método 1 funcionou mas tem poucas linhas, tenta sem range
+                    if df is not None and len(df) < 2000:
+                        sheet_url2 = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+                        try:
+                            df2 = pd.read_csv(sheet_url2, encoding='utf-8', header=None)
+                            if len(df2) > len(df):
+                                df = df2
+                                sheet_url_used = sheet_url2
+                        except Exception:
+                            pass
+
+                    # sucesso — fixa o ID para os próximos métodos
+                    sheet_id_env = sid
+                    break
+                except Exception as e:
+                    last_err = e
+                    df = None
+                    continue
+            if df is None and last_err is not None:
+                raise last_err
         except Exception as e:
             st.warning(f"⚠️ Erro no método 1: {str(e)}")
         
         # Método 2: Tenta com export direto (pode pegar a primeira aba)
         if df is None or len(df) < 2000:
             try:
-                sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+                sid = sheet_id_env or (sheet_id_candidates[0] if sheet_id_candidates else "")
+                sheet_url = f"https://docs.google.com/spreadsheets/d/{sid}/export?format=csv&gid=0"
                 sheet_url_used = sheet_url
                 try:
                     df_temp = pd.read_csv(sheet_url, encoding='utf-8', header=None)
@@ -1149,7 +1181,8 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Método 3: Tenta com export direto sem gid
         if df is None or len(df) < 2000:
             try:
-                sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+                sid = sheet_id_env or (sheet_id_candidates[0] if sheet_id_candidates else "")
+                sheet_url = f"https://docs.google.com/spreadsheets/d/{sid}/export?format=csv"
                 sheet_url_used = sheet_url
                 try:
                     df_temp = pd.read_csv(sheet_url, encoding='utf-8', header=None)
