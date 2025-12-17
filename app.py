@@ -4177,17 +4177,45 @@ def main():
                 
                 if coluna_categoria_startups:
                     # Mapeia nomes do filtro do mapa para valores reais na planilha
-                    # Os nomes no filtro podem ser diferentes dos valores na coluna
+                    # O filtro do mapa usa nomes como "Grandes Empresas Âncoras", mas na planilha pode estar como "Empresa Âncora"
                     mapeamento_categorias = {
+                        # Startup
                         "startup": ["startup", "startups"],
-                        "grandes empresas âncoras": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora"],
-                        "empresa âncora": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora"],
-                        "fundos e investidores": ["fundos e investidores", "fundo e investidor", "fundos e investidor"],
-                        "universidades e icts": ["universidades e icts", "universidade e ict", "universidade/ict", "ict"],
-                        "hubs, incubadoras e parques tecnológicos": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "aceleradora", "ecossistema"],
-                        "órgãos públicos e apoio": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico"],
-                        "aceleradora": ["aceleradora"],
-                        "ecossistema": ["ecossistema", "hub", "incubadora"]
+                        "startups": ["startup", "startups"],
+                        
+                        # Empresa Âncora
+                        "grandes empresas âncoras": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora", "empresas âncoras"],
+                        "empresa âncora": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora", "empresas âncoras"],
+                        "empresa ancora": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora", "empresas âncoras"],
+                        
+                        # Empresa Estatal
+                        "empresa estatal": ["empresa estatal"],
+                        
+                        # Fundos e Investidores
+                        "fundos e investidores": ["fundos e investidores", "fundo e investidor", "fundos e investidor", "fundo e investidores"],
+                        "fundo e investidor": ["fundos e investidores", "fundo e investidor", "fundos e investidor", "fundo e investidores"],
+                        
+                        # Universidades e ICTs
+                        "universidades e icts": ["universidades e icts", "universidade e ict", "universidade/ict", "universidade / ict", "ict", "universidade"],
+                        "universidade e ict": ["universidades e icts", "universidade e ict", "universidade/ict", "universidade / ict", "ict", "universidade"],
+                        "universidade/ict": ["universidades e icts", "universidade e ict", "universidade/ict", "universidade / ict", "ict", "universidade"],
+                        "ict": ["universidades e icts", "universidade e ict", "universidade/ict", "universidade / ict", "ict", "universidade"],
+                        "universidade": ["universidades e icts", "universidade e ict", "universidade/ict", "universidade / ict", "ict", "universidade"],
+                        
+                        # Hubs, Incubadoras e Parques Tecnológicos
+                        "hubs, incubadoras e parques tecnológicos": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        "hub": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        "incubadora": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        "parque tecnológico": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        "aceleradora": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        "ecossistema": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "parque tecnologico", "aceleradora", "ecossistema"],
+                        
+                        # Órgãos Públicos e Apoio
+                        "órgãos públicos e apoio": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico", "órgão de apoio", "orgao de apoio"],
+                        "órgão público": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico", "órgão de apoio", "orgao de apoio"],
+                        "orgao publico": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico", "órgão de apoio", "orgao de apoio"],
+                        "órgão de apoio": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico", "órgão de apoio", "orgao de apoio"],
+                        "orgao de apoio": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico", "órgão de apoio", "orgao de apoio"]
                     }
                     
                     # Normaliza valores para comparação case-insensitive
@@ -4197,15 +4225,23 @@ def main():
                     valores_possiveis = set()
                     for cat_filtro in categorias_filtro_tabela:
                         cat_filtro_str = str(cat_filtro).strip().lower()
+                        
                         # Adiciona o valor exato do filtro
                         valores_possiveis.add(cat_filtro_str)
+                        
                         # Adiciona valores mapeados se existirem
                         if cat_filtro_str in mapeamento_categorias:
                             valores_possiveis.update(mapeamento_categorias[cat_filtro_str])
-                        # Também verifica se alguma chave do mapeamento contém o filtro
+                        
+                        # Também verifica se alguma chave do mapeamento contém o filtro (busca parcial)
                         for chave_mapeamento, valores_mapeados in mapeamento_categorias.items():
+                            # Se o filtro contém a chave ou a chave contém o filtro
                             if cat_filtro_str in chave_mapeamento or chave_mapeamento in cat_filtro_str:
                                 valores_possiveis.update(valores_mapeados)
+                    
+                    # DEBUG: Mostra valores que serão buscados
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Valores que serão buscados na coluna: {sorted(list(valores_possiveis))[:20]}")
                     
                     # Cria máscara: registros cuja categoria normalizada está na lista de valores possíveis
                     mask = coluna_categoria_normalizada.isin(list(valores_possiveis))
