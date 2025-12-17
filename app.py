@@ -4139,8 +4139,9 @@ def main():
                         st.info(f"🔍 DEBUG: Registros depois do filtro de município: {total_depois_municipio} (perdidos: {total_antes_municipio - total_depois_municipio})")
         
         # Aplica filtro de categoria
-        # Se não há filtros de categoria, mostra todos os dados (não aplica filtro)
+        # IMPORTANTE: Se não há filtros de categoria selecionados, mostra TODOS os dados (não aplica filtro)
         if categorias_filtro_tabela and len(categorias_filtro_tabela) > 0:
+            # Há filtros de categoria selecionados - aplica o filtro
                 # DEBUG: Mostra total antes do filtro de categoria
                 total_antes_categoria = len(df_startups_para_tabela)
                 with st.sidebar:
@@ -4331,6 +4332,17 @@ def main():
                 else:
                     with st.sidebar:
                         st.warning(f"⚠️ DEBUG: Coluna de categoria não encontrada! Colunas disponíveis: {list(df_startups_para_tabela.columns)[:10]}")
+        else:
+            # NÃO há filtros de categoria selecionados - mostra TODOS os dados
+            with st.sidebar:
+                st.info(f"ℹ️ DEBUG: Nenhum filtro de categoria selecionado - mostrando TODOS os dados")
+                if coluna_categoria_startups:
+                    contagem_sem_filtro = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().value_counts()
+                    st.info(f"🔍 DEBUG: Distribuição por categoria (sem filtro):")
+                    for cat, qtd in contagem_sem_filtro.head(15).items():
+                        st.text(f"   • {cat}: {qtd}")
+                    if len(contagem_sem_filtro) > 15:
+                        st.text(f"   ... e mais {len(contagem_sem_filtro) - 15} categorias")
         
         # DEBUG: Mostra total antes do filtro de segmentos
         total_antes_segmentos = len(df_startups_para_tabela)
