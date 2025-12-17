@@ -2060,13 +2060,15 @@ def create_choropleth_map(df, df_atores=None):
         st.error("❌ Coluna de município não encontrada na planilha.")
         return
 
-    if not coluna_qtd_startups:
-        st.error("❌ Coluna de quantidade de startups não encontrada na planilha.")
-        return
-    
     if not coluna_codigo_ibge:
         st.error("❌ Coluna de código IBGE não encontrada na planilha.")
         return
+
+    # Se não encontrou coluna de quantidade de startups, vai calcular a partir dos dados de atores
+    if not coluna_qtd_startups:
+        # Cria coluna temporária com zeros - será preenchida depois com dados de atores
+        coluna_qtd_startups = 'qtd_startups'
+        df[coluna_qtd_startups] = 0
 
     try:
         with st.spinner("Carregando dados geográficos de Minas Gerais..."):
@@ -2076,7 +2078,9 @@ def create_choropleth_map(df, df_atores=None):
         return
 
     # Dados da planilha normalizados
-    colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao, coluna_qtd_startups]
+    colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao]
+    if coluna_qtd_startups in df.columns:
+        colunas_necessarias.append(coluna_qtd_startups)
     if coluna_qtd_empresas_ancora in df.columns:
         colunas_necessarias.append(coluna_qtd_empresas_ancora)
     if coluna_qtd_fundos_e_investidores in df.columns:
