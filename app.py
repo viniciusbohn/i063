@@ -4176,13 +4176,39 @@ def main():
                         st.info(f"🔍 DEBUG: Categorias filtradas: {categorias_filtro_tabela}")
                 
                 if coluna_categoria_startups:
-                    # SIMPLIFICADO: Busca direta pelos valores exatos na coluna de categoria
+                    # Mapeia nomes do filtro do mapa para valores reais na planilha
+                    # Os nomes no filtro podem ser diferentes dos valores na coluna
+                    mapeamento_categorias = {
+                        "startup": ["startup", "startups"],
+                        "grandes empresas âncoras": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora"],
+                        "empresa âncora": ["empresa âncora", "empresa ancora", "grandes empresas âncoras", "grandes empresas ancora"],
+                        "fundos e investidores": ["fundos e investidores", "fundo e investidor", "fundos e investidor"],
+                        "universidades e icts": ["universidades e icts", "universidade e ict", "universidade/ict", "ict"],
+                        "hubs, incubadoras e parques tecnológicos": ["hubs, incubadoras e parques tecnológicos", "hub", "incubadora", "parque tecnológico", "aceleradora", "ecossistema"],
+                        "órgãos públicos e apoio": ["órgãos públicos e apoio", "orgaos publicos e apoio", "órgão público", "orgao publico"],
+                        "aceleradora": ["aceleradora"],
+                        "ecossistema": ["ecossistema", "hub", "incubadora"]
+                    }
+                    
                     # Normaliza valores para comparação case-insensitive
                     coluna_categoria_normalizada = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().str.lower()
-                    categorias_filtro_normalizadas = [str(cat).strip().lower() for cat in categorias_filtro_tabela]
                     
-                    # Cria máscara: registros cuja categoria normalizada está na lista de filtros
-                    mask = coluna_categoria_normalizada.isin(categorias_filtro_normalizadas)
+                    # Cria lista de valores possíveis baseado no mapeamento
+                    valores_possiveis = set()
+                    for cat_filtro in categorias_filtro_tabela:
+                        cat_filtro_str = str(cat_filtro).strip().lower()
+                        # Adiciona o valor exato do filtro
+                        valores_possiveis.add(cat_filtro_str)
+                        # Adiciona valores mapeados se existirem
+                        if cat_filtro_str in mapeamento_categorias:
+                            valores_possiveis.update(mapeamento_categorias[cat_filtro_str])
+                        # Também verifica se alguma chave do mapeamento contém o filtro
+                        for chave_mapeamento, valores_mapeados in mapeamento_categorias.items():
+                            if cat_filtro_str in chave_mapeamento or chave_mapeamento in cat_filtro_str:
+                                valores_possiveis.update(valores_mapeados)
+                    
+                    # Cria máscara: registros cuja categoria normalizada está na lista de valores possíveis
+                    mask = coluna_categoria_normalizada.isin(list(valores_possiveis))
                     
                     # DEBUG: Mostra quantos registros foram encontrados pela máscara
                     total_encontrados_mask = mask.sum()
