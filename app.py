@@ -2179,24 +2179,47 @@ def create_choropleth_map(df, df_atores=None):
     )
     
     # Preenche nome do município se não existir
-    if coluna_municipio not in df_regions.columns or df_regions[coluna_municipio].isna().any():
-        if 'nome' in df_regions.columns:
-            df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
-        elif 'nome_municipio' in df_regions.columns:
-            df_regions[coluna_municipio] = df_regions['nome_municipio']
+    if coluna_municipio not in df_regions.columns:
+        df_regions[coluna_municipio] = df_regions['nome']
+    else:
+        df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
     
-    # Garante que a região está preenchida (deve vir da planilha)
-    if coluna_regiao not in df_regions.columns or df_regions[coluna_regiao].isna().any():
-        # Se houver municípios sem região, tenta preencher com a região mais comum
-        if coluna_regiao in df_regions.columns:
-            regiao_mais_comum = df_regions[coluna_regiao].mode()
-            if len(regiao_mais_comum) > 0:
-                df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
-            else:
-                df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
+    # Para municípios sem região na planilha, cria mapeamento pelo nome
+    if coluna_regiao not in df_regions.columns:
+        df_regions[coluna_regiao] = None
+    
+    # Cria mapeamento de municípios para regiões baseado na planilha
+    mapeamento_municipio_regiao = {}
+    if coluna_municipio in df_map.columns and coluna_regiao in df_map.columns:
+        for _, row in df_map.dropna(subset=[coluna_municipio, coluna_regiao]).iterrows():
+            municipio_nome = str(row[coluna_municipio]).strip().lower()
+            regiao_valor = str(row[coluna_regiao]).strip()
+            if municipio_nome and regiao_valor:
+                mapeamento_municipio_regiao[municipio_nome] = regiao_valor
+    
+    # Preenche regiões faltantes usando o mapeamento
+    if coluna_regiao in df_regions.columns:
+        def obter_regiao(row):
+            if pd.notna(row.get(coluna_regiao)):
+                return row[coluna_regiao]
+            # Tenta encontrar pelo nome do município
+            municipio_nome = str(row.get(coluna_municipio, '')).strip().lower()
+            if municipio_nome in mapeamento_municipio_regiao:
+                return mapeamento_municipio_regiao[municipio_nome]
+            return None
+        
+        regioes_mapeadas = df_regions.apply(obter_regiao, axis=1)
+        df_regions[coluna_regiao] = regioes_mapeadas
+        
+        # Para municípios que ainda não têm região, usa a região mais comum
+        regiao_mais_comum = df_regions[coluna_regiao].mode()
+        if len(regiao_mais_comum) > 0:
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
         else:
-            st.warning("⚠️ Coluna de região não encontrada na planilha. Todos os municípios serão atribuídos à região 'Centro'.")
-            df_regions[coluna_regiao] = "Centro"
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
+    else:
+        st.warning("⚠️ Coluna de região não encontrada na planilha. Todos os municípios serão atribuídos à região 'Centro'.")
+        df_regions[coluna_regiao] = "Centro"
     
     # Preenche quantidades com 0 se não existirem
     if coluna_qtd_startups not in df_regions.columns:
