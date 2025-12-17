@@ -2136,6 +2136,9 @@ def create_choropleth_map(df, df_atores=None):
     # Se o merge não trouxe o nome, usa o nome da planilha
     df_regions['nome'] = df_regions['nome'].fillna(df_regions[coluna_municipio])
     
+    # Renomeia para manter consistência (cria regiao_final primeiro)
+    df_regions['regiao_final'] = df_regions[coluna_regiao]
+    
     # Se a coluna qtd_startups estava vazia ou não existia, calcula a partir dos dados de atores
     if df_atores is not None and not df_atores.empty and (coluna_qtd_startups not in df_regions.columns or df_regions[coluna_qtd_startups].sum() == 0):
         # Procura colunas nos dados de atores
@@ -2202,8 +2205,7 @@ def create_choropleth_map(df, df_atores=None):
                 else:
                     df_regions.loc[idx, coluna_qtd_startups] = 0
     
-    # Renomeia para manter consistência
-    df_regions['regiao_final'] = df_regions[coluna_regiao]
+    # Cria coluna count
     if coluna_qtd_startups in df_regions.columns:
         df_regions['count'] = df_regions[coluna_qtd_startups]
     else:
