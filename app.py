@@ -997,10 +997,80 @@ st.markdown(f"""
 def load_data_from_sheets(sheet_name, force_reload=False):
     """
     Carrega dados do Google Sheets SEBRAE MG de uma aba específica
+    Usa API do Google Sheets (gspread) se disponível, caso contrário usa export CSV
     """
     try:
         sheet_id = "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk"
         
+        # MÉTODO 1: Tenta usar API do Google Sheets (sem limitação de linhas)
+        if GSPREAD_AVAILABLE:
+            try:
+                # Tenta carregar credenciais de variável de ambiente ou arquivo
+                credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
+                
+                if os.path.exists(credentials_path):
+                    # Carrega credenciais do service account
+                    scope = [
+                        'https://spreadsheets.google.com/feeds',
+                        'https://www.googleapis.com/auth/drive'
+                    ]
+                    creds = Credentials.from_service_account_file(credentials_path, scopes=scope)
+                    client = gspread.authorize(creds)
+                    
+                    # Abre a planilha
+                    spreadsheet = client.open_by_key(sheet_id)
+                    
+                    # Abre a aba
+                    try:
+                        worksheet = spreadsheet.worksheet(sheet_name)
+                    except gspread.exceptions.WorksheetNotFound:
+                        # Tenta encontrar a aba por nome similar
+                        all_sheets = spreadsheet.worksheets()
+                        worksheet = None
+                        for ws in all_sheets:
+                            if ws.title.strip() == sheet_name.strip():
+                                worksheet = ws
+                                break
+                        
+                        if worksheet is None:
+                            raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {[ws.title for ws in all_sheets]}")
+                    
+                    # Obtém TODOS os valores da planilha (sem limitação)
+                    all_values = worksheet.get_all_values()
+                    
+                    if len(all_values) == 0:
+                        raise Exception("Planilha vazia")
+                    
+                    # Primeira linha é o cabeçalho
+                    headers = all_values[0]
+                    data_rows = all_values[1:]
+                    
+                    # Cria DataFrame
+                    df = pd.DataFrame(data_rows, columns=headers)
+                    
+                    st.info(f"✅ Dados carregados via API do Google Sheets: {len(df)} linhas (sem limitação de export CSV)")
+                    
+                    # Remove linhas completamente vazias
+                    df = df.dropna(how='all')
+                    
+                    # Remove espaços dos nomes das colunas
+                    df.columns = [str(col).strip() if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
+                    
+                    # Remove linhas onde a primeira coluna está vazia
+                    if len(df) > 0 and len(df.columns) > 0:
+                        primeira_col = df.columns[0]
+                        if primeira_col in df.columns:
+                            mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
+                            df = df[mask]
+                    
+                    return df
+                    
+            except FileNotFoundError:
+                st.warning("⚠️ Arquivo de credenciais não encontrado. Usando export CSV (pode ter limitação de linhas).")
+            except Exception as e:
+                st.warning(f"⚠️ Erro ao usar API do Google Sheets: {str(e)}. Usando export CSV como fallback.")
+        
+        # MÉTODO 2: Fallback para export CSV (pode ter limitação de ~2000 linhas)
         # IMPORTANTE: Google Sheets CSV export pode ter limitações
         # Tentamos múltiplos métodos para garantir que pegamos todos os dados
         
