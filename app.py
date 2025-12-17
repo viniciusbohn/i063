@@ -2337,18 +2337,12 @@ def create_choropleth_map(df, df_atores=None):
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
     
-    # NÃO recalcula dos atores - usa APENAS os dados da planilha
-    # As quantidades já vêm da planilha "Municípios e Regiões"
+    # NÃO recalcula dos atores - usa APENAS os dados da planilha "Municípios e Regiões"
+    # As quantidades vêm diretamente das colunas: qtd_startups, qtd_empresas_ancora, etc.
     
-    # Cria coluna count usando as quantidades da planilha
-    # Por padrão, usa qtd_startups (será recalculada dinamicamente baseada nas categorias selecionadas)
-    if coluna_qtd_startups in df_regions.columns:
-        df_regions['count'] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
-    else:
-        df_regions['count'] = 0
-    
-    # Garante que não há valores NaN na coluna count
-    df_regions['count'] = df_regions['count'].fillna(0).astype(int)
+    # Inicializa count com 0 - será calculado dinamicamente baseado nas categorias selecionadas
+    # usando APENAS as colunas da planilha
+    df_regions['count'] = 0
     
     # Garante que todos os municípios têm código IBGE válido
     # Remove apenas municípios sem código IBGE (não remove por região, pois já foram preenchidos acima)
@@ -2767,14 +2761,15 @@ def create_choropleth_map(df, df_atores=None):
                 df_regions_filtrado[coluna_municipio] == municipio_selecionado
             ]
         
-        # Aplica filtro de categoria - ajusta os valores de count baseado nas categorias selecionadas
-        # USA AS COLUNAS DA PLANILHA diretamente (qtd_startups, qtd_empresas_ancora, etc.)
+        # Aplica filtro de categoria - calcula count baseado nas categorias selecionadas
+        # USA APENAS AS COLUNAS DA PLANILHA: qtd_startups, qtd_empresas_ancora, qtd_fundos_e_investidores,
+        # qtd_universidades_icts, qtd_orgaos, qtd_hubs_incubadoras_parquestecnologicos
         if categorias_selecionadas:
             df_regions_filtrado = df_regions_filtrado.copy()
-            # Recalcula o count baseado nas categorias selecionadas usando as colunas da planilha
+            # Calcula count somando as colunas de quantidade da planilha baseado nas categorias selecionadas
             count_filtrado = pd.Series(0, index=df_regions_filtrado.index)
             
-            # Garante que estamos usando os nomes corretos das colunas encontradas na planilha
+            # Usa as colunas exatas da planilha encontradas no mapeamento
             if "Startup" in categorias_selecionadas:
                 # Se há filtro de segmentos, usa a coluna temporária filtrada, senão usa a original da planilha
                 if 'qtd_startups_temp_filtrado' in df_regions_filtrado.columns:
@@ -2809,6 +2804,7 @@ def create_choropleth_map(df, df_atores=None):
                 if col_qtd_hubs_uso in df_regions_filtrado.columns:
                     count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_hubs_uso], errors='coerce').fillna(0)
             
+            # Atualiza count com a soma das colunas de quantidade da planilha
             df_regions_filtrado['count'] = count_filtrado.astype(int)
         elif categorias_disponiveis:
             # Se nenhuma categoria selecionada mas há categorias disponíveis, não mostra nada
