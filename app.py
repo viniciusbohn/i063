@@ -1043,7 +1043,8 @@ def load_data_from_sheets(sheet_name, force_reload=False):
             # Se a primeira linha parece ser um cabeçalho (contém palavras-chave)
             if any(palavra in primeira_linha_str for palavra in ['nome', 'name', 'categoria', 'category', 'ator', 'actor', 'cidade', 'city']):
                 # A primeira linha é o cabeçalho - usa ela como nomes das colunas
-                df.columns = df.iloc[0]
+                # Converte para string para evitar problemas com tipos não-string
+                df.columns = [str(col) if pd.notna(col) else f'Coluna_{i}' for i, col in enumerate(df.iloc[0])]
                 df = df.iloc[1:].reset_index(drop=True)
             else:
                 # Se não parece ser cabeçalho, define nomes padrão
