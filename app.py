@@ -2188,8 +2188,16 @@ def create_choropleth_map(df, df_atores=None):
     if coluna_regiao not in df_regions.columns:
         df_regions[coluna_regiao] = None
     
-    # Cria mapeamento de municípios para regiões baseado na planilha
+    # Cria mapeamento de municípios para regiões baseado na planilha (por código IBGE e por nome)
+    mapeamento_ibge_regiao = {}
     mapeamento_municipio_regiao = {}
+    if coluna_codigo_ibge in df_map.columns and coluna_regiao in df_map.columns:
+        for _, row in df_map.dropna(subset=[coluna_codigo_ibge, coluna_regiao]).iterrows():
+            codigo_ibge_str = str(normalize_codigo_ibge(pd.Series([row[coluna_codigo_ibge]]))[0]) if pd.notna(row[coluna_codigo_ibge]) else None
+            regiao_valor = str(row[coluna_regiao]).strip()
+            if codigo_ibge_str and regiao_valor:
+                mapeamento_ibge_regiao[codigo_ibge_str] = regiao_valor
+    
     if coluna_municipio in df_map.columns and coluna_regiao in df_map.columns:
         for _, row in df_map.dropna(subset=[coluna_municipio, coluna_regiao]).iterrows():
             municipio_nome = str(row[coluna_municipio]).strip().lower()
@@ -2197,21 +2205,57 @@ def create_choropleth_map(df, df_atores=None):
             if municipio_nome and regiao_valor:
                 mapeamento_municipio_regiao[municipio_nome] = regiao_valor
     
-    # Preenche regiões faltantes usando o mapeamento
-    if coluna_regiao in df_regions.columns:
-        def obter_regiao(row):
-            if pd.notna(row.get(coluna_regiao)):
-                return row[coluna_regiao]
-            # Tenta encontrar pelo nome do município
-            municipio_nome = str(row.get(coluna_municipio, '')).strip().lower()
-            if municipio_nome in mapeamento_municipio_regiao:
-                return mapeamento_municipio_regiao[municipio_nome]
-            return None
+    # Preenche regiões faltantes usando o mapeamento (primeiro por IBGE, depois por nome)
+    if coluna_regiao not in df_regions.columns:
+        df_regions[coluna_regiao] = None
+    
+    def obter_regiao(row):
+        # Se já tem região do merge, usa ela
+        if pd.notna(row.get(coluna_regiao)):
+            return row[coluna_regiao]
         
-        regioes_mapeadas = df_regions.apply(obter_regiao, axis=1)
-        df_regions[coluna_regiao] = regioes_mapeadas
+        # Tenta encontrar por código IBGE primeiro
+        codigo_ibge_str = str(normalize_codigo_ibge(pd.Series([row['codigo_ibge']]))[0]) if pd.notna(row.get('codigo_ibge')) else None
+        if codigo_ibge_str and codigo_ibge_str in mapeamento_ibge_regiao:
+            return mapeamento_ibge_regiao[codigo_ibge_str]
         
-        # Para municípios que ainda não têm região, usa a região mais comum
+        # Tenta encontrar pelo nome do município
+        municipio_nome = str(row.get(coluna_municipio, '')).strip().lower()
+        if municipio_nome in mapeamento_municipio_regiao:
+            return mapeamento_municipio_regiao[municipio_nome]
+        
+        return None
+    
+    regioes_mapeadas = df_regions.apply(obter_regiao, axis=1)
+    df_regions[coluna_regiao] = regioes_mapeadas
+    
+    # Para municípios que ainda não têm região após o mapeamento, tenta inferir pela proximidade geográfica
+    municipios_sem_regiao = df_regions[df_regions[coluna_regiao].isna()]
+    if not municipios_sem_regiao.empty:
+        for idx, row in municipios_sem_regiao.iterrows():
+            lat = row.get('latitude')
+            lon = row.get('longitude')
+            if pd.notna(lat) and pd.notna(lon):
+                # Encontra municípios próximos que têm região
+                municipios_proximos = df_regions[
+                    (df_regions[coluna_regiao].notna()) &
+                    (df_regions['latitude'].notna()) &
+                    (df_regions['longitude'].notna())
+                ].copy()
+                if not municipios_proximos.empty:
+                    # Calcula distância aproximada
+                    municipios_proximos['dist'] = (
+                        (municipios_proximos['latitude'] - lat) ** 2 +
+                        (municipios_proximos['longitude'] - lon) ** 2
+                    ) ** 0.5
+                    # Pega o município mais próximo
+                    mais_proximo = municipios_proximos.nsmallest(1, 'dist')
+                    if not mais_proximo.empty and pd.notna(mais_proximo.iloc[0][coluna_regiao]):
+                        df_regions.loc[idx, coluna_regiao] = mais_proximo.iloc[0][coluna_regiao]
+                        continue
+    
+    # Se ainda houver municípios sem região, usa a região mais comum como último recurso
+    if df_regions[coluna_regiao].isna().any():
         regiao_mais_comum = df_regions[coluna_regiao].mode()
         if len(regiao_mais_comum) > 0:
             df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
