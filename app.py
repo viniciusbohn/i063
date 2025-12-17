@@ -4061,6 +4061,8 @@ def main():
         total_inicial = len(df_startups_para_tabela)
         with st.sidebar:
             st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
+            st.info(f"🔍 DEBUG: Dados carregados diretamente do Google Sheets (aba 'Base | Atores MG')")
+            st.info(f"🔍 DEBUG: Filtros ativos - Região: {regiao_filtro_tabela}, Município: {municipio_filtro_tabela}, Categorias: {len(categorias_filtro_tabela) if categorias_filtro_tabela else 0}, Segmentos: {len(segmentos_filtro_tabela) if segmentos_filtro_tabela else 0}")
             
             # DEBUG: Mostra distribuição por categoria ANTES de qualquer filtro
             coluna_categoria_debug = None
