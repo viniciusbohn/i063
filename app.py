@@ -2212,8 +2212,17 @@ def create_choropleth_map(df, df_atores=None):
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
     
-    # Sempre recalcula a partir dos dados de atores se disponível (garante filtro por cidade preenchida)
-    if df_atores is not None and not df_atores.empty:
+    # Usa as colunas de quantidade da planilha como fonte principal
+    # Só recalcula a partir dos dados de atores se as colunas da planilha estiverem vazias ou não existirem
+    # Verifica se as colunas de quantidade da planilha têm dados válidos
+    tem_dados_planilha = False
+    if coluna_qtd_startups in df_regions.columns:
+        # Verifica se há pelo menos alguns valores não-zero na planilha
+        if df_regions[coluna_qtd_startups].notna().any() and (df_regions[coluna_qtd_startups] > 0).any():
+            tem_dados_planilha = True
+    
+    # Só recalcula dos atores se não houver dados na planilha
+    if not tem_dados_planilha and df_atores is not None and not df_atores.empty:
         # Procura colunas nos dados de atores
         coluna_categoria_atores = None
         possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
@@ -2281,9 +2290,11 @@ def create_choropleth_map(df, df_atores=None):
                 else:
                     df_regions.loc[idx, coluna_qtd_startups] = 0
     
-    # Cria coluna count
+    # Cria coluna count usando as quantidades da planilha
+    # A coluna 'count' será calculada dinamicamente baseada nas categorias selecionadas
+    # Por padrão, usa qtd_startups se disponível
     if coluna_qtd_startups in df_regions.columns:
-        df_regions['count'] = df_regions[coluna_qtd_startups]
+        df_regions['count'] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
     else:
         df_regions['count'] = 0
     
