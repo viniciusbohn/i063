@@ -1978,14 +1978,25 @@ def create_choropleth_map(df, df_atores=None):
     """
     
     # Busca colunas de forma flexível (pode ter nomes diferentes)
+    # Prioriza 'nome_mesorregiao' que é a coluna da planilha "Municípios e Regiões"
     coluna_regiao = None
     possiveis_nomes_regiao = ['nome_mesorregiao', 'regiao sebrae', 'região sebrae', 'regiao_sebrae', 'região_sebrae', 
                              'mesorregiao', 'mesorregião', 'regiao', 'região']
-    for col in df.columns:
-        col_lower = str(col).lower().strip()
-        if any(nome.lower() in col_lower or col_lower in nome.lower() for nome in possiveis_nomes_regiao):
-            coluna_regiao = col
-            break
+    
+    # Primeiro, tenta encontrar exatamente 'nome_mesorregiao'
+    if 'nome_mesorregiao' in df.columns:
+        coluna_regiao = 'nome_mesorregiao'
+    else:
+        # Se não encontrar, busca por similaridade
+        for col in df.columns:
+            col_lower = str(col).lower().strip()
+            # Busca mais específica primeiro
+            if 'mesorregiao' in col_lower or 'mesorregião' in col_lower:
+                coluna_regiao = col
+                break
+            elif any(nome.lower() in col_lower or col_lower in nome.lower() for nome in possiveis_nomes_regiao):
+                coluna_regiao = col
+                break
     
     coluna_municipio = None
     possiveis_nomes_municipio = ['nome_municipio', 'municipio', 'município', 'cidade', 'city']
