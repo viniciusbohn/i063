@@ -4061,6 +4061,23 @@ def main():
         total_inicial = len(df_startups_para_tabela)
         with st.sidebar:
             st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
+            
+            # DEBUG: Mostra distribuição por categoria ANTES de qualquer filtro
+            coluna_categoria_debug = None
+            possiveis_nomes_categoria_debug = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+            for col in df_startups_para_tabela.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria_debug):
+                    coluna_categoria_debug = col
+                    break
+            
+            if coluna_categoria_debug:
+                contagem_inicial = df_startups_para_tabela[coluna_categoria_debug].astype(str).str.strip().value_counts()
+                st.info(f"🔍 DEBUG: Distribuição por categoria ANTES dos filtros:")
+                for cat, qtd in contagem_inicial.head(10).items():
+                    st.text(f"   • {cat}: {qtd}")
+                if len(contagem_inicial) > 10:
+                    st.text(f"   ... e mais {len(contagem_inicial) - 10} categorias")
         
         # Obtém os valores dos filtros do session_state (definidos no mapa)
         regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
