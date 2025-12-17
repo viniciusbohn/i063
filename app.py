@@ -2289,18 +2289,30 @@ def create_choropleth_map(df, df_atores=None):
     for col_qtd_exata, col_encontrada in colunas_qtd_encontradas.items():
         if col_encontrada and col_encontrada in df_regions.columns:
             # Preenche NaN com 0 (municípios que não estão na planilha)
+            # IMPORTANTE: Converte para numérico preservando os valores existentes
             df_regions[col_encontrada] = pd.to_numeric(df_regions[col_encontrada], errors='coerce').fillna(0).astype(int)
         else:
             # Se não encontrou a coluna na planilha, cria coluna com zeros para todos os municípios
             df_regions[col_qtd_exata] = 0
     
+    # Debug temporário: verifica se Uberlândia tem os valores corretos
+    if coluna_municipio in df_regions.columns:
+        uberlandia = df_regions[df_regions[coluna_municipio].astype(str).str.strip().str.lower() == 'uberlândia']
+        if not uberlandia.empty:
+            st.info(f"🔍 Debug: Uberlândia encontrada. Colunas de quantidade: {[col for col in df_regions.columns if 'qtd' in col.lower()]}. Valores: qtd_startups={uberlandia[coluna_qtd_startups].iloc[0] if coluna_qtd_startups in uberlandia.columns else 'N/A'}")
+    
     # Atualiza variáveis para usar as colunas encontradas
+    # IMPORTANTE: Usa o nome exato da coluna encontrada na planilha
     coluna_qtd_startups = colunas_qtd_encontradas.get('qtd_startups', 'qtd_startups')
     coluna_qtd_empresas_ancora = colunas_qtd_encontradas.get('qtd_empresas_ancora', 'qtd_empresas_ancora')
     coluna_qtd_fundos_e_investidores = colunas_qtd_encontradas.get('qtd_fundos_e_investidores', 'qtd_fundos_e_investidores')
     coluna_qtd_universidades_icts = colunas_qtd_encontradas.get('qtd_universidades_icts', 'qtd_universidades_icts')
     coluna_qtd_orgaos = colunas_qtd_encontradas.get('qtd_orgaos', 'qtd_orgaos')
     coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_encontradas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
+    
+    # Debug: mostra quais colunas foram encontradas
+    st.info(f"🔍 Colunas de quantidade encontradas: {colunas_qtd_encontradas}")
+    st.info(f"🔍 Coluna qtd_startups a ser usada: '{coluna_qtd_startups}'")
     
     # Garante que todas as colunas existem (cria com zeros se não existirem)
     # Isso é importante para municípios que não estão na planilha
