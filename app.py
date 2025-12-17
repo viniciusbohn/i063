@@ -1380,9 +1380,37 @@ def load_data_from_sheets(sheet_name, force_reload=False):
 @st.cache_data(ttl=300)  # Cache por 5 minutos para permitir atualizações
 def load_data_municipios_regioes(force_reload=False):
     """
-    Carrega dados da aba "Municipios e Regioes" para o mapa
+    Carrega dados da aba "Municipios e Regioes" para o mapa.
+    Para o mapa, usamos CSV direto (menos dados) ao invés da API.
     """
-    return load_data_from_sheets("Municipios e Regioes", force_reload)
+    try:
+        import os as os_module
+        from urllib.parse import quote as _quote
+
+        sheet_id = os_module.getenv("GOOGLE_SHEET_ID") or os_module.getenv("SHEET_ID") or "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk"
+        sheet_name = "Municipios e Regioes"
+        encoded_sheet_name = _quote(sheet_name, safe="")
+
+        # CSV direto da aba (valores calculados já vêm no CSV)
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z5000"
+
+        # Tenta diferentes encodings (Windows/acentos)
+        try:
+            df = pd.read_csv(sheet_url, encoding="utf-8")
+        except Exception:
+            try:
+                df = pd.read_csv(sheet_url, encoding="latin-1")
+            except Exception:
+                df = pd.read_csv(sheet_url, encoding="iso-8859-1")
+
+        # Remove linhas completamente vazias
+        df = df.dropna(how="all")
+        # Normaliza nomes das colunas
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do mapa (CSV): {str(e)}")
+        return pd.DataFrame()
 
 
 @st.cache_data(ttl=300)  # Cache por 5 minutos para permitir atualizações
