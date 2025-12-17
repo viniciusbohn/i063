@@ -1022,17 +1022,23 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 except:
                     df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
         
-        # CORREÇÃO: Se leu sem header, precisa identificar onde está o cabeçalho real
-        # Primeiro, detecta se a primeira linha tem dados concatenados (problema de exportação do Google Sheets)
-        if len(df) > 0 and len(df.columns) > 0:
+        # CORREÇÃO: Detecta e remove linhas problemáticas (dados concatenados)
+        # O Google Sheets às vezes exporta com a primeira linha tendo todos os dados concatenados
+        linhas_removidas = 0
+        while len(df) > 0 and len(df.columns) > 0:
             primeira_col_primeira_linha = str(df.iloc[0, 0]) if pd.notna(df.iloc[0, 0]) else ""
             
             # Se a primeira coluna tem mais de 200 caracteres e contém "Nome do Ator", está concatenada
             if len(primeira_col_primeira_linha) > 200 and "Nome do Ator" in primeira_col_primeira_linha:
-                # PROBLEMA: O Google Sheets exportou tudo concatenado na primeira linha
+                # PROBLEMA: O Google Sheets exportou tudo concatenado nesta linha
                 # Remove essa linha problemática
-                st.warning("⚠️ Detectado problema na exportação do Google Sheets: primeira linha com dados concatenados. Removendo linha problemática...")
+                if linhas_removidas == 0:
+                    st.warning("⚠️ Detectado problema na exportação do Google Sheets: linha(s) com dados concatenados. Removendo...")
                 df = df.iloc[1:].reset_index(drop=True)
+                linhas_removidas += 1
+            else:
+                # Não é uma linha concatenada, para de remover
+                break
         
         # Agora verifica se as colunas são numéricas (não tinha header) e tenta detectar o header
         if len(df) > 0:
