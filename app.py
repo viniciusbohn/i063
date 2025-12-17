@@ -1005,10 +1005,12 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # MÉTODO 1: Tenta usar API do Google Sheets (sem limitação de linhas)
         if GSPREAD_AVAILABLE:
             try:
+                # Importa os aqui para evitar problemas de escopo
+                import os as os_module
                 # Tenta carregar credenciais de variável de ambiente ou arquivo
-                credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
+                credentials_path = os_module.getenv('GOOGLE_APPLICATION_CREDENTIALS', 'credentials.json')
                 
-                if os.path.exists(credentials_path):
+                if os_module.path.exists(credentials_path):
                     # Carrega credenciais do service account
                     scope = [
                         'https://spreadsheets.google.com/feeds',
@@ -1048,8 +1050,6 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     # Cria DataFrame
                     df = pd.DataFrame(data_rows, columns=headers)
                     
-                    st.info(f"✅ Dados carregados via API do Google Sheets: {len(df)} linhas (sem limitação de export CSV)")
-                    
                     # Remove linhas completamente vazias
                     df = df.dropna(how='all')
                     
@@ -1066,9 +1066,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     return df
                     
             except FileNotFoundError:
-                st.warning("⚠️ Arquivo de credenciais não encontrado. Usando export CSV (pode ter limitação de linhas).")
+                pass  # Silenciosamente usa fallback CSV
             except Exception as e:
-                st.warning(f"⚠️ Erro ao usar API do Google Sheets: {str(e)}. Usando export CSV como fallback.")
+                pass  # Silenciosamente usa fallback CSV
         
         # MÉTODO 2: Fallback para export CSV (pode ter limitação de ~2000 linhas)
         # IMPORTANTE: Google Sheets CSV export pode ter limitações
@@ -2008,7 +2008,7 @@ def create_choropleth_map(df, df_atores=None):
             geojson_mg = load_geojson_mg()
     except Exception as e:
         st.error(f"❌ Falha ao carregar GeoJSON: {e}")
-        geojson_mg = None
+        return
 
     # Dados da planilha normalizados
     colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao, coluna_qtd_startups]
