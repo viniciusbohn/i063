@@ -7,6 +7,15 @@ from datetime import datetime
 import numpy as np
 from urllib.parse import quote
 import unicodedata
+import os
+
+# Tenta importar gspread para API do Google Sheets
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_AVAILABLE = True
+except ImportError:
+    GSPREAD_AVAILABLE = False
 
 # Configuração da página
 st.set_page_config(
