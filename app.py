@@ -13,7 +13,7 @@ st.set_page_config(
     page_title="Dashboard - Ecossistema de Inovação MG",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Constantes globais para mapas
