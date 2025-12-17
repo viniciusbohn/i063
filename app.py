@@ -4122,6 +4122,7 @@ def main():
                         st.info(f"🔍 DEBUG: Registros depois do filtro de município: {total_depois_municipio} (perdidos: {total_antes_municipio - total_depois_municipio})")
         
         # Aplica filtro de categoria
+        # Se não há filtros de categoria, mostra todos os dados (não aplica filtro)
         if categorias_filtro_tabela and len(categorias_filtro_tabela) > 0:
                 # DEBUG: Mostra total antes do filtro de categoria
                 total_antes_categoria = len(df_startups_para_tabela)
