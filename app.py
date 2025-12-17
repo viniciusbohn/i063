@@ -4372,6 +4372,15 @@ def main():
                         st.warning(f"⚠️ DEBUG: Coluna de categoria não encontrada! Colunas disponíveis: {list(df_startups_para_tabela.columns)[:10]}")
         else:
             # NÃO há filtros de categoria selecionados - mostra TODOS os dados
+            # Procura coluna de categoria para mostrar debug
+            coluna_categoria_startups = None
+            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+            for col in df_startups_para_tabela.columns:
+                col_lower = col.lower().strip()
+                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
+                    coluna_categoria_startups = col
+                    break
+            
             with st.sidebar:
                 st.info(f"ℹ️ DEBUG: Nenhum filtro de categoria selecionado - mostrando TODOS os dados")
                 if coluna_categoria_startups:
@@ -4381,6 +4390,15 @@ def main():
                         st.text(f"   • {cat}: {qtd}")
                     if len(contagem_sem_filtro) > 15:
                         st.text(f"   ... e mais {len(contagem_sem_filtro) - 15} categorias")
+            
+            # Mostra também na área principal
+            if coluna_categoria_startups:
+                with st.expander("🔍 DEBUG: Sem Filtro de Categoria - Mostrando TODOS os Dados", expanded=True):
+                    contagem_sem_filtro = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().value_counts()
+                    st.info(f"**Total de registros:** {len(df_startups_para_tabela)}")
+                    st.info("**Distribuição por categoria:**")
+                    for cat, qtd in contagem_sem_filtro.items():
+                        st.text(f"   • {cat}: {qtd}")
         
         # DEBUG: Mostra total antes do filtro de segmentos
         total_antes_segmentos = len(df_startups_para_tabela)
