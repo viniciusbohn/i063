@@ -1040,39 +1040,20 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 expected_cols = expected_cols[:num_cols]
                 # Renomeia as colunas
                 df.columns = expected_cols
-                # Remove as primeiras linhas que são dados concatenados
-                # Procura pela primeira linha que tem dados válidos
-                # IMPORTANTE: Verifica se a primeira linha é um cabeçalho válido
+                # IMPORTANTE: Não remove linhas automaticamente - pode estar removendo dados válidos
+                # Apenas remove se a primeira linha for claramente um cabeçalho duplicado
                 if len(df) > 0:
-                    # Verifica se a primeira linha parece ser um cabeçalho (contém "Nome", "Categoria", etc.)
                     primeira_linha = df.iloc[0, 0] if len(df) > 0 else ""
                     primeira_linha_str = str(primeira_linha).lower().strip()
                     
-                    # Se a primeira linha parece ser um cabeçalho, remove apenas ela
-                    if any(palavra in primeira_linha_str for palavra in ['nome', 'name', 'categoria', 'category', 'ator', 'actor']):
+                    # Remove apenas se a primeira linha for claramente um cabeçalho (contém palavras-chave de cabeçalho)
+                    # E tem menos de 100 caracteres (cabeçalhos são curtos)
+                    if (len(primeira_linha_str) < 100 and 
+                        any(palavra in primeira_linha_str for palavra in ['nome do ator', 'name', 'categoria', 'category', 'ator', 'actor']) and
+                        # Verifica se parece ser um cabeçalho (não tem números, não parece um nome de empresa)
+                        not any(char.isdigit() for char in primeira_linha_str) and
+                        len(primeira_linha_str.split()) <= 5):  # Cabeçalhos têm poucas palavras
                         df = df.iloc[1:].reset_index(drop=True)
-                    else:
-                        # Caso contrário, procura pela primeira linha válida (primeira coluna com menos de 50 caracteres)
-                        mask = df.iloc[:, 0].astype(str).str.len() < 50
-                        if mask.any():
-                            # Encontra o primeiro índice True na máscara
-                            try:
-                                # Tenta usar idxmax (retorna o índice do primeiro True)
-                                first_valid_idx = mask.idxmax()
-                            except:
-                                # Se idxmax não funcionar, usa argmax ou busca manual
-                                try:
-                                    first_valid_idx = mask.argmax()
-                                except:
-                                    # Busca manual pelo primeiro True
-                                    first_valid_idx = 0
-                                    for i, val in enumerate(mask):
-                                        if val:
-                                            first_valid_idx = i
-                                            break
-                            # Se encontrou uma linha válida, remove tudo antes dela
-                            if first_valid_idx > 0:
-                                df = df.iloc[first_valid_idx:].reset_index(drop=True)
         
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
