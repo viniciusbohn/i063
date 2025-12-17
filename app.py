@@ -994,9 +994,12 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         
         # Método 1: Tenta com a URL de export CSV direta usando o nome da aba
         # IMPORTANTE: Não usa skiprows ou header para não pular linhas válidas
+        df = None
+        sheet_url_used = None
         try:
             encoded_sheet_name = quote(sheet_name, safe="")
             sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+            sheet_url_used = sheet_url
             # Tenta diferentes encodings para resolver problemas com caracteres especiais
             # IMPORTANTE: header=None inicialmente para não perder a primeira linha
             try:
@@ -1010,6 +1013,7 @@ def load_data_from_sheets(sheet_name, force_reload=False):
             # Método 2: Tenta com export direto (pode pegar a primeira aba)
             try:
                 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+                sheet_url_used = sheet_url
                 try:
                     df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
                 except:
@@ -1017,10 +1021,24 @@ def load_data_from_sheets(sheet_name, force_reload=False):
             except:
                 # Método 3: Tenta com gid=0 (primeira aba)
                 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+                sheet_url_used = sheet_url
                 try:
                     df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
                 except:
                     df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+        
+        # DEBUG: Salva o CSV bruto para verificação
+        if df is not None and len(df) > 0:
+            try:
+                import os
+                debug_dir = "debug_csv"
+                if not os.path.exists(debug_dir):
+                    os.makedirs(debug_dir)
+                csv_filename = f"{debug_dir}/csv_bruto_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
+                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+                st.info(f"💾 CSV bruto salvo em: `{csv_filename}` (Total de linhas: {len(df)})")
+            except Exception as e:
+                st.warning(f"⚠️ Não foi possível salvar CSV de debug: {str(e)}")
         
         # CORREÇÃO: Detecta e remove linhas problemáticas (dados concatenados)
         # O Google Sheets às vezes exporta com a primeira linha tendo todos os dados concatenados
@@ -1110,6 +1128,18 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
         
+        # DEBUG: Salva CSV após remoção de linhas vazias
+        if df is not None and len(df) > 0:
+            try:
+                import os
+                debug_dir = "debug_csv"
+                if not os.path.exists(debug_dir):
+                    os.makedirs(debug_dir)
+                csv_filename = f"{debug_dir}/csv_apos_limpeza_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
+                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+            except Exception:
+                pass  # Ignora erro ao salvar debug
+        
         # Remove espaços dos nomes das colunas (importante!)
         # IMPORTANTE: Verifica se as colunas ainda são numéricas (não foram nomeadas)
         if len(df.columns) > 0:
@@ -1137,6 +1167,27 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 except Exception:
                     # Se houver erro, apenas converte para string sem strip
                     df.columns = [str(col) if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
+        
+        # DEBUG: Salva CSV final após processamento
+        if df is not None and len(df) > 0:
+            try:
+                import os
+                debug_dir = "debug_csv"
+                if not os.path.exists(debug_dir):
+                    os.makedirs(debug_dir)
+                csv_filename = f"{debug_dir}/csv_final_{sheet_name.replace(' ', '_').replace('|', '_')}.csv"
+                df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+                st.info(f"💾 CSV final salvo em: `{csv_filename}` (Total de linhas: {len(df)})")
+                
+                # Mostra categorias únicas encontradas
+                if 'Categoria' in df.columns:
+                    categorias_unicas = df['Categoria'].astype(str).str.strip().unique()
+                    st.info(f"📊 Categorias únicas encontradas no CSV final: {len(categorias_unicas)}")
+                    st.text(f"   {', '.join(sorted(categorias_unicas)[:20])}")
+                    if len(categorias_unicas) > 20:
+                        st.text(f"   ... e mais {len(categorias_unicas) - 20} categorias")
+            except Exception as e:
+                st.warning(f"⚠️ Não foi possível salvar CSV final de debug: {str(e)}")
         
         # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
         # IMPORTANTE: Seja conservador - só remove se realmente estiver vazio
