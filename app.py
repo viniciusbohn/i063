@@ -2126,7 +2126,8 @@ def create_choropleth_map(df, df_atores=None):
         colunas_necessarias.append(coluna_qtd_hubs_incubadoras_parquestecnologicos)
     
     df_map = df[colunas_necessarias].copy()
-    df_map = df_map.dropna(subset=[coluna_municipio, coluna_regiao])
+    # Remove apenas municípios sem código IBGE ou sem município (mas mantém mesmo sem região, pois será preenchida)
+    df_map = df_map.dropna(subset=[coluna_municipio, coluna_codigo_ibge])
     
     # Normaliza código IBGE se existir
     if coluna_codigo_ibge in df_map.columns:
