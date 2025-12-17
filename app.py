@@ -1022,29 +1022,31 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 except:
                     df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
         
-        # CORREÇÃO: Detecta se a primeira linha tem dados concatenados (problema de exportação do Google Sheets)
-        # Se a primeira coluna da primeira linha tem mais de 200 caracteres, provavelmente está concatenada
-        if len(df) > 0 and len(df.columns) > 0:
-            primeira_col_primeira_linha = str(df.iloc[0, 0]) if pd.notna(df.iloc[0, 0]) else ""
-            
-            # Se a primeira linha tem dados concatenados (muito longa e contém múltiplos nomes)
-            if len(primeira_col_primeira_linha) > 200 and "Nome do Ator" in primeira_col_primeira_linha:
-                # PROBLEMA: O Google Sheets exportou tudo concatenado na primeira linha
-                # Remove essa linha problemática e tenta usar a segunda linha como cabeçalho
-                st.warning("⚠️ Detectado problema na exportação do Google Sheets: primeira linha com dados concatenados. Removendo linha problemática...")
-                df = df.iloc[1:].reset_index(drop=True)
-        
         # CORREÇÃO: Se leu sem header, precisa identificar onde está o cabeçalho real
         # Verifica se a primeira linha parece ser um cabeçalho
-        if len(df) > 0 and isinstance(df.columns[0], int):  # Se as colunas são numéricas, não tinha header
+        if len(df) > 0 and isinstance(df.columns[0], (int, np.integer)):  # Se as colunas são numéricas, não tinha header
             primeira_linha = df.iloc[0].astype(str).tolist() if len(df) > 0 else []
             primeira_linha_str = ' '.join(primeira_linha).lower()
+            
+            # Detecta se a primeira linha tem dados concatenados (problema de exportação do Google Sheets)
+            # Se a primeira coluna tem mais de 200 caracteres e contém "Nome do Ator", está concatenada
+            primeira_col_primeira_linha = str(df.iloc[0, 0]) if len(df.columns) > 0 and pd.notna(df.iloc[0, 0]) else ""
+            
+            if len(primeira_col_primeira_linha) > 200 and "Nome do Ator" in primeira_col_primeira_linha:
+                # PROBLEMA: O Google Sheets exportou tudo concatenado na primeira linha
+                # Remove essa linha problemática
+                st.warning("⚠️ Detectado problema na exportação do Google Sheets: primeira linha com dados concatenados. Removendo linha problemática...")
+                df = df.iloc[1:].reset_index(drop=True)
+                # Agora verifica se a nova primeira linha é cabeçalho
+                if len(df) > 0:
+                    primeira_linha = df.iloc[0].astype(str).tolist()
+                    primeira_linha_str = ' '.join(primeira_linha).lower()
             
             # Se a primeira linha parece ser um cabeçalho (contém palavras-chave)
             if any(palavra in primeira_linha_str for palavra in ['nome', 'name', 'categoria', 'category', 'ator', 'actor', 'cidade', 'city']):
                 # A primeira linha é o cabeçalho - usa ela como nomes das colunas
                 # Converte para string para evitar problemas com tipos não-string
-                df.columns = [str(col) if pd.notna(col) else f'Coluna_{i}' for i, col in enumerate(df.iloc[0])]
+                df.columns = [str(col).strip() if pd.notna(col) else f'Coluna_{i}' for i, col in enumerate(df.iloc[0])]
                 df = df.iloc[1:].reset_index(drop=True)
             else:
                 # Se não parece ser cabeçalho, define nomes padrão
@@ -1102,11 +1104,28 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         
         # Remove espaços dos nomes das colunas (importante!)
         # Converte para string primeiro caso as colunas sejam numéricas ou de outro tipo
-        try:
-            df.columns = [str(col).strip() if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
-        except Exception:
-            # Se houver erro, apenas converte para string sem strip
-            df.columns = [str(col) if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
+        # IMPORTANTE: Só faz isso se as colunas ainda não foram nomeadas corretamente
+        if len(df.columns) > 0:
+            # Verifica se as colunas ainda são numéricas (não foram nomeadas)
+            primeira_col = df.columns[0]
+            if isinstance(primeira_col, (int, np.integer)) or (isinstance(primeira_col, str) and primeira_col.isdigit()):
+                # Colunas ainda são numéricas - define nomes padrão
+                if sheet_name == "Base | Atores MG":
+                    num_cols = len(df.columns)
+                    expected_cols = ['Nome do Ator', 'Categoria', 'Cidade', 'Regiao Sebrae', 'Site', 
+                                   'Descrição Resumida', 'Setor', 'Tags', 'Ano de Fundação', 
+                                   'Tamanho da Equipe', 'Marco Legal', 'Relação com Beta-i']
+                    while len(expected_cols) < num_cols:
+                        expected_cols.append(f'Coluna {len(expected_cols) + 1}')
+                    expected_cols = expected_cols[:num_cols]
+                    df.columns = expected_cols
+            else:
+                # Colunas já têm nomes - apenas remove espaços
+                try:
+                    df.columns = [str(col).strip() if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
+                except Exception:
+                    # Se houver erro, apenas converte para string sem strip
+                    df.columns = [str(col) if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
         
         # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
         # IMPORTANTE: Seja conservador - só remove se realmente estiver vazio
