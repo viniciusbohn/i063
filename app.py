@@ -1038,7 +1038,11 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                             raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {[ws.title for ws in all_sheets]}")
                     
                     # Obtém TODOS os valores da planilha (sem limitação)
-                    all_values = worksheet.get_all_values()
+                    # IMPORTANTE: usar valores calculados (não fórmulas), senão colunas como `qtd_startups`
+                    # podem vir como "=COUNTIFS(...)" e virarem 0 no pd.to_numeric(errors='coerce').
+                    all_values = worksheet.get_all_values(
+                        value_render_option="UNFORMATTED_VALUE"
+                    )
                     
                     if len(all_values) == 0:
                         raise Exception("Planilha vazia")
