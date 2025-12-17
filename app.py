@@ -96,14 +96,14 @@ def hex_to_rgb(hex_color: str):
     return tuple(int(hex_clean[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def build_colorscale(base_hex: str, min_alpha: float = 0.25):
+def build_colorscale(base_hex: str, min_alpha: float = 0.35):
     """Gera colorscale RGBA baseada na cor base."""
     r, g, b = hex_to_rgb(base_hex)
     return [
-        (0.0, f"rgba({r},{g},{b},{min_alpha})"),  # Valor mínimo mais visível
-        (0.25, f"rgba({r},{g},{b},{min_alpha + 0.2})"),
-        (0.5, f"rgba({r},{g},{b},{min_alpha + 0.4})"),
-        (0.75, f"rgba({r},{g},{b},{min_alpha + 0.65})"),
+        (0.0, f"rgba({r},{g},{b},{min_alpha})"),  # Valor mínimo mais visível (0.35)
+        (0.25, f"rgba({r},{g},{b},{min_alpha + 0.15})"),  # 0.50
+        (0.5, f"rgba({r},{g},{b},{min_alpha + 0.35})"),  # 0.70
+        (0.75, f"rgba({r},{g},{b},{min_alpha + 0.55})"),  # 0.90
         (1.0, f"rgba({r},{g},{b},1.0)"),
     ]
 
