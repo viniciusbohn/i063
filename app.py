@@ -96,14 +96,15 @@ def hex_to_rgb(hex_color: str):
     return tuple(int(hex_clean[i : i + 2], 16) for i in (0, 2, 4))
 
 
-def build_colorscale(base_hex: str, min_alpha: float = 0.35):
+def build_colorscale(base_hex: str, min_alpha: float = 0.15):
     """Gera colorscale RGBA baseada na cor base."""
     r, g, b = hex_to_rgb(base_hex)
     return [
-        (0.0, f"rgba({r},{g},{b},{min_alpha})"),  # Valor mínimo mais visível (0.35)
-        (0.25, f"rgba({r},{g},{b},{min_alpha + 0.15})"),  # 0.50
-        (0.5, f"rgba({r},{g},{b},{min_alpha + 0.35})"),  # 0.70
-        (0.75, f"rgba({r},{g},{b},{min_alpha + 0.55})"),  # 0.90
+        # 0 deve ficar bem transparente (especialmente para municípios com count=0)
+        (0.0, f"rgba({r},{g},{b},{min_alpha})"),
+        (0.25, f"rgba({r},{g},{b},{min(min_alpha + 0.18, 0.5)})"),
+        (0.5, f"rgba({r},{g},{b},{min(min_alpha + 0.40, 0.75)})"),
+        (0.75, f"rgba({r},{g},{b},{min(min_alpha + 0.65, 0.92)})"),
         (1.0, f"rgba({r},{g},{b},1.0)"),
     ]
 
@@ -3128,17 +3129,16 @@ def create_choropleth_map(df, df_atores=None):
             continue
 
         # Calcula intensidade com diferença clara entre 0 e 1+ startups
-        # Garante que municípios com 0 tenham intensidade mínima visível (0.25)
+        # Agora: municípios com 0 ficam bem mais transparentes.
         max_count = df_regiao['count'].max()
         if not max_count or max_count <= 0:
-            # Se todos têm 0, define intensidade mínima visível para todos
-            df_regiao['intensidade'] = 0.25  # Intensidade mínima mas visível
+            # Se todos têm 0, deixa todos bem transparentes
+            df_regiao['intensidade'] = 0.05
         else:
-            # Municípios com 0: intensidade mínima visível (0.25) - mais alta para garantir visibilidade
-            # Municípios com 1+: intensidade normalizada entre 0.4 e 1.0
-            # Isso cria uma diferença clara visualmente
+            # Municípios com 0: quase transparente (0.05)
+            # Municípios com 1+: normaliza entre 0.25 e 1.0
             df_regiao['intensidade'] = df_regiao['count'].apply(
-                lambda x: 0.25 if x == 0 or pd.isna(x) else 0.4 + (x / max_count) * 0.6
+                lambda x: 0.05 if x == 0 or pd.isna(x) else 0.25 + (x / max_count) * 0.75
             )
 
         # Identifica municípios com match no GeoJSON (garante que código seja string)
