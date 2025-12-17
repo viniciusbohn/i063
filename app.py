@@ -2269,14 +2269,20 @@ def create_choropleth_map(df, df_atores=None):
     # A região DEVE vir da planilha - todos os municípios da planilha devem ter região
     if coluna_regiao not in df_regions.columns:
         st.error(f"❌ Coluna de região '{coluna_regiao}' não encontrada após o merge. Verifique se a planilha 'Municípios e Regiões' tem a coluna de região.")
+        st.info(f"📋 Colunas disponíveis: {', '.join(df_regions.columns.tolist()[:20])}")
         return
     
-    # Remove apenas municípios sem região (a planilha deve ter todos com região)
+    # Verifica se há municípios sem região e preenche com a região mais comum (não remove)
     municipios_sem_regiao = df_regions[df_regions[coluna_regiao].isna() | (df_regions[coluna_regiao].astype(str).str.strip() == '')]
     if not municipios_sem_regiao.empty:
-        st.warning(f"⚠️ {len(municipios_sem_regiao)} municípios na planilha não têm região. Eles serão removidos do mapa.")
-        # Remove apenas municípios sem região (a planilha deve ter todos com região)
-        df_regions = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')]
+        st.warning(f"⚠️ {len(municipios_sem_regiao)} municípios na planilha não têm região. Preenchendo com a região mais comum.")
+        # Preenche com a região mais comum da planilha (não remove)
+        regiao_mais_comum = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')][coluna_regiao].mode()
+        if len(regiao_mais_comum) > 0:
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
+        else:
+            # Se não há nenhuma região na planilha, usa "Centro" como padrão
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
     
     # Preenche quantidades usando as colunas encontradas na planilha
     # Para municípios que não estão na planilha, preenche com 0
@@ -2344,9 +2350,12 @@ def create_choropleth_map(df, df_atores=None):
     # Garante que não há valores NaN na coluna count
     df_regions['count'] = df_regions['count'].fillna(0).astype(int)
     
-    # Mantém todos os municípios (mesmo sem região na planilha, já foram preenchidos acima)
-    # Remove apenas municípios sem código IBGE válido
+    # Garante que todos os municípios têm código IBGE válido
+    # Remove apenas municípios sem código IBGE (não remove por região, pois já foram preenchidos acima)
     df_regions = df_regions[df_regions['codigo_ibge'].notna()]
+    
+    # Garante que todos os municípios têm região (já foram preenchidos acima se necessário)
+    df_regions = df_regions[df_regions[coluna_regiao].notna() & (df_regions[coluna_regiao].astype(str).str.strip() != '')]
     
     # Define cores para TODAS as regiões ANTES de aplicar filtros
     # Isso garante que cada região mantenha sua cor original
