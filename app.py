@@ -1045,8 +1045,24 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 if len(df) > 0:
                     mask = df.iloc[:, 0].astype(str).str.len() < 50
                     if mask.any():
-                        first_valid_idx = mask.idxmax() if hasattr(mask, 'idxmax') else (mask.argmax() if hasattr(mask, 'argmax') else 0)
-                        df = df.iloc[first_valid_idx:].reset_index(drop=True)
+                        # Encontra o primeiro índice True na máscara
+                        try:
+                            # Tenta usar idxmax (retorna o índice do primeiro True)
+                            first_valid_idx = mask.idxmax()
+                        except:
+                            # Se idxmax não funcionar, usa argmax ou busca manual
+                            try:
+                                first_valid_idx = mask.argmax()
+                            except:
+                                # Busca manual pelo primeiro True
+                                first_valid_idx = 0
+                                for i, val in enumerate(mask):
+                                    if val:
+                                        first_valid_idx = i
+                                        break
+                        # Se encontrou uma linha válida, remove tudo antes dela
+                        if first_valid_idx > 0:
+                            df = df.iloc[first_valid_idx:].reset_index(drop=True)
         
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
@@ -4259,6 +4275,19 @@ def main():
                             mask |= coluna_categoria_normalizada == "hubs incubadoras e parques tecnologicos"
                             # Busca por "aceleradora" também (pode estar incluída)
                             mask |= coluna_categoria_normalizada.str.contains("aceleradora", case=False, na=False, regex=False)
+                        
+                        # Aceleradora (categoria específica na planilha)
+                        if "aceleradora" in cat_filtro_str:
+                            mask |= coluna_categoria_normalizada == "aceleradora"
+                            mask |= coluna_categoria_normalizada.str.contains("aceleradora", case=False, na=False, regex=False)
+                        
+                        # Ecossistema (categoria específica na planilha - pode incluir hubs, incubadoras, etc)
+                        if "ecossistema" in cat_filtro_str:
+                            mask |= coluna_categoria_normalizada == "ecossistema"
+                            mask |= coluna_categoria_normalizada.str.contains("ecossistema", case=False, na=False, regex=False)
+                            # Ecossistema pode incluir hubs, então também busca por essas palavras
+                            mask |= coluna_categoria_normalizada.str.contains("hub", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("incubadora", case=False, na=False, regex=False)
                     
                     # DEBUG: Mostra quantos registros foram encontrados pela máscara
                     total_encontrados_mask = mask.sum()
