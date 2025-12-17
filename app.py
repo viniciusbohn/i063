@@ -2136,9 +2136,78 @@ def create_choropleth_map(df, df_atores=None):
     # Se o merge não trouxe o nome, usa o nome da planilha
     df_regions['nome'] = df_regions['nome'].fillna(df_regions[coluna_municipio])
     
+    # Se a coluna qtd_startups estava vazia ou não existia, calcula a partir dos dados de atores
+    if df_atores is not None and not df_atores.empty and (coluna_qtd_startups not in df_regions.columns or df_regions[coluna_qtd_startups].sum() == 0):
+        # Procura colunas nos dados de atores
+        coluna_categoria_atores = None
+        possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+        for col in df_atores.columns:
+            col_lower = str(col).lower().strip()
+            if any(nome.lower() in col_lower for nome in possiveis_nomes_categoria):
+                coluna_categoria_atores = col
+                break
+        
+        coluna_cidade_atores = None
+        possiveis_nomes_cidade = ['cidade', 'municipio', 'município', 'city']
+        for col in df_atores.columns:
+            col_lower = str(col).lower().strip()
+            if any(nome.lower() in col_lower for nome in possiveis_nomes_cidade):
+                coluna_cidade_atores = col
+                break
+        
+        coluna_regiao_atores = None
+        possiveis_nomes_regiao_atores = ['regiao sebrae', 'região sebrae', 'regiao_sebrae', 'região_sebrae', 
+                                       'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
+        for col in df_atores.columns:
+            col_lower = str(col).lower().strip()
+            if any(nome.lower() in col_lower for nome in possiveis_nomes_regiao_atores):
+                coluna_regiao_atores = col
+                break
+        
+        if coluna_categoria_atores and coluna_cidade_atores:
+            # Filtra apenas startups para contar
+            df_startups_para_contar = df_atores[
+                df_atores[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+            ].copy()
+            
+            # Reagrega contagens de startups por município/região
+            if coluna_regiao_atores:
+                df_agregado = df_startups_para_contar.groupby([coluna_regiao_atores, coluna_cidade_atores]).size().reset_index(name='qtd_startups_calculado')
+            else:
+                df_agregado = df_startups_para_contar.groupby([coluna_cidade_atores]).size().reset_index(name='qtd_startups_calculado')
+            
+            # Garante que a coluna existe
+            if coluna_qtd_startups not in df_regions.columns:
+                df_regions[coluna_qtd_startups] = 0
+            
+            # Atualiza df_regions com as contagens calculadas
+            for idx, row in df_regions.iterrows():
+                regiao_match = str(row['regiao_final']).strip() if pd.notna(row.get('regiao_final')) else ""
+                municipio_match = str(row[coluna_municipio]).strip() if pd.notna(row[coluna_municipio]) else ""
+                
+                # Busca contagem calculada
+                if coluna_regiao_atores:
+                    match = df_agregado[
+                        (df_agregado[coluna_regiao_atores].astype(str).str.strip().str.lower() == regiao_match.lower()) &
+                        (df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower())
+                    ]
+                else:
+                    match = df_agregado[
+                        df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower()
+                    ]
+                
+                if not match.empty:
+                    nova_contagem = match.iloc[0]['qtd_startups_calculado'] if 'qtd_startups_calculado' in match.columns else 0
+                    df_regions.loc[idx, coluna_qtd_startups] = int(nova_contagem) if pd.notna(nova_contagem) else 0
+                else:
+                    df_regions.loc[idx, coluna_qtd_startups] = 0
+    
     # Renomeia para manter consistência
     df_regions['regiao_final'] = df_regions[coluna_regiao]
-    df_regions['count'] = df_regions[coluna_qtd_startups]
+    if coluna_qtd_startups in df_regions.columns:
+        df_regions['count'] = df_regions[coluna_qtd_startups]
+    else:
+        df_regions['count'] = 0
     
     # Mantém somente municípios que têm região definida na planilha
     df_regions = df_regions[df_regions['regiao_final'].notna()]
