@@ -1977,30 +1977,95 @@ def create_choropleth_map(df, df_atores=None):
         df_atores: DataFrame opcional com dados da aba "Base | Atores MG" para filtro por categoria
     """
     
-    # Usa as colunas específicas da aba "Municípios e Regiões"
-    coluna_regiao = "nome_mesorregiao"
-    coluna_municipio = "nome_municipio"
-    coluna_qtd_startups = "qtd_startups"
-    coluna_qtd_empresas_ancora = "qtd_empresas_ancora"
-    coluna_qtd_fundos_e_investidores = "qtd_fundos_e_investidores"
-    coluna_qtd_universidades_icts = "qtd_universidades_icts"
-    coluna_qtd_orgaos = "qtd_orgaos"
-    coluna_qtd_hubs_incubadoras_parquestecnologicos = "qtd_hubs_incubadoras_parquestecnologicos"
-    coluna_codigo_ibge = "codigo_ibge"
+    # Busca colunas de forma flexível (pode ter nomes diferentes)
+    coluna_regiao = None
+    possiveis_nomes_regiao = ['nome_mesorregiao', 'regiao sebrae', 'região sebrae', 'regiao_sebrae', 'região_sebrae', 
+                             'mesorregiao', 'mesorregião', 'regiao', 'região']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower or col_lower in nome.lower() for nome in possiveis_nomes_regiao):
+            coluna_regiao = col
+            break
+    
+    coluna_municipio = None
+    possiveis_nomes_municipio = ['nome_municipio', 'municipio', 'município', 'cidade', 'city']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower or col_lower in nome.lower() for nome in possiveis_nomes_municipio):
+            coluna_municipio = col
+            break
+    
+    coluna_qtd_startups = None
+    possiveis_nomes_qtd_startups = ['qtd_startups', 'qtd_startup', 'quantidade_startups', 'quantidade_startup', 
+                                    'total_startups', 'total_startup', 'startups', 'startup']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower or col_lower in nome.lower() for nome in possiveis_nomes_qtd_startups):
+            coluna_qtd_startups = col
+            break
+    
+    coluna_qtd_empresas_ancora = None
+    possiveis_nomes_empresas_ancora = ['qtd_empresas_ancora', 'qtd_empresa_ancora', 'quantidade_empresas_ancora']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_empresas_ancora):
+            coluna_qtd_empresas_ancora = col
+            break
+    
+    coluna_qtd_fundos_e_investidores = None
+    possiveis_nomes_fundos = ['qtd_fundos_e_investidores', 'qtd_fundos', 'quantidade_fundos']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_fundos):
+            coluna_qtd_fundos_e_investidores = col
+            break
+    
+    coluna_qtd_universidades_icts = None
+    possiveis_nomes_universidades = ['qtd_universidades_icts', 'qtd_universidades', 'quantidade_universidades']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_universidades):
+            coluna_qtd_universidades_icts = col
+            break
+    
+    coluna_qtd_orgaos = None
+    possiveis_nomes_orgaos = ['qtd_orgaos', 'qtd_orgãos', 'quantidade_orgaos']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_orgaos):
+            coluna_qtd_orgaos = col
+            break
+    
+    coluna_qtd_hubs_incubadoras_parquestecnologicos = None
+    possiveis_nomes_hubs = ['qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs', 'quantidade_hubs']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_hubs):
+            coluna_qtd_hubs_incubadoras_parquestecnologicos = col
+            break
+    
+    coluna_codigo_ibge = None
+    possiveis_nomes_ibge = ['codigo_ibge', 'código_ibge', 'codigo ibge', 'código ibge', 'ibge']
+    for col in df.columns:
+        col_lower = str(col).lower().strip()
+        if any(nome.lower() in col_lower for nome in possiveis_nomes_ibge):
+            coluna_codigo_ibge = col
+            break
 
-    if coluna_regiao not in df.columns:
-        st.warning(f"⚠️ Coluna '{coluna_regiao}' não encontrada na planilha. Este mapa requer a coluna de região.")
-        st.info(f"💡 Colunas disponíveis: {', '.join(df.columns.astype(str).tolist())}")
+    if not coluna_regiao:
+        st.error("❌ Coluna de região não encontrada na planilha. Este mapa requer uma coluna de região.")
         return
 
-    if coluna_municipio not in df.columns:
-        st.warning(f"⚠️ Coluna '{coluna_municipio}' não encontrada na planilha.")
-        st.info(f"💡 Colunas disponíveis: {', '.join(df.columns.astype(str).tolist())}")
+    if not coluna_municipio:
+        st.error("❌ Coluna de município não encontrada na planilha.")
         return
 
-    if coluna_qtd_startups not in df.columns:
-        st.warning(f"⚠️ Coluna '{coluna_qtd_startups}' não encontrada na planilha.")
-        st.info(f"💡 Colunas disponíveis: {', '.join(df.columns.astype(str).tolist())}")
+    if not coluna_qtd_startups:
+        st.error("❌ Coluna de quantidade de startups não encontrada na planilha.")
+        return
+    
+    if not coluna_codigo_ibge:
+        st.error("❌ Coluna de código IBGE não encontrada na planilha.")
         return
 
     try:
