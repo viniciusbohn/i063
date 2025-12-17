@@ -4248,7 +4248,21 @@ def main():
                     
                     # DEBUG: Mostra valores que serão buscados
                     with st.sidebar:
+                        st.info(f"🔍 DEBUG: Categorias do filtro: {categorias_filtro_tabela}")
                         st.info(f"🔍 DEBUG: Valores que serão buscados na coluna: {sorted(list(valores_possiveis))}")
+                        
+                        # DEBUG: Mostra valores reais na coluna para comparação
+                        valores_reais_unicos = coluna_categoria_normalizada.unique()
+                        st.info(f"🔍 DEBUG: Valores reais únicos na coluna (normalizados): {sorted(valores_reais_unicos)[:20]}")
+                        
+                        # DEBUG: Testa match para cada valor possível
+                        for valor_buscado in sorted(list(valores_possiveis))[:10]:
+                            matches = coluna_categoria_normalizada == valor_buscado
+                            total_matches = matches.sum()
+                            if total_matches > 0:
+                                st.text(f"   ✅ '{valor_buscado}': {total_matches} matches")
+                            else:
+                                st.text(f"   ❌ '{valor_buscado}': 0 matches")
                     
                     # Cria máscara: registros cuja categoria normalizada está na lista de valores possíveis
                     mask = coluna_categoria_normalizada.isin(list(valores_possiveis))
