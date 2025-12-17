@@ -2971,17 +2971,17 @@ def create_choropleth_map(df, df_atores=None):
             continue
 
         # Calcula intensidade com diferença clara entre 0 e 1+ startups
-        # Garante que municípios com 0 tenham intensidade mínima visível (0.15)
+        # Garante que municípios com 0 tenham intensidade mínima visível (0.25)
         max_count = df_regiao['count'].max()
         if not max_count or max_count <= 0:
             # Se todos têm 0, define intensidade mínima visível para todos
-            df_regiao['intensidade'] = 0.15  # Intensidade mínima mas visível
+            df_regiao['intensidade'] = 0.25  # Intensidade mínima mas visível
         else:
-            # Municípios com 0: intensidade mínima visível (0.15)
-            # Municípios com 1+: intensidade normalizada entre 0.3 e 1.0
+            # Municípios com 0: intensidade mínima visível (0.25) - mais alta para garantir visibilidade
+            # Municípios com 1+: intensidade normalizada entre 0.4 e 1.0
             # Isso cria uma diferença clara visualmente
             df_regiao['intensidade'] = df_regiao['count'].apply(
-                lambda x: 0.15 if x == 0 else 0.3 + (x / max_count) * 0.7
+                lambda x: 0.25 if x == 0 or pd.isna(x) else 0.4 + (x / max_count) * 0.6
             )
 
         # Identifica municípios com match no GeoJSON (garante que código seja string)
