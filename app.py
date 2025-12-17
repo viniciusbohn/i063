@@ -2971,16 +2971,17 @@ def create_choropleth_map(df, df_atores=None):
             continue
 
         # Calcula intensidade com diferença clara entre 0 e 1+ startups
+        # Garante que municípios com 0 tenham intensidade mínima visível (0.15)
         max_count = df_regiao['count'].max()
         if not max_count or max_count <= 0:
-            # Se todos têm 0 startups, define intensidade mínima visível
-            df_regiao['intensidade'] = 0.05  # Intensidade muito baixa mas visível
+            # Se todos têm 0, define intensidade mínima visível para todos
+            df_regiao['intensidade'] = 0.15  # Intensidade mínima mas visível
         else:
-            # Municípios com 0 startups: intensidade baixa (0.05)
-            # Municípios com 1+ startups: intensidade normalizada entre 0.25 e 1.0
+            # Municípios com 0: intensidade mínima visível (0.15)
+            # Municípios com 1+: intensidade normalizada entre 0.3 e 1.0
             # Isso cria uma diferença clara visualmente
             df_regiao['intensidade'] = df_regiao['count'].apply(
-                lambda x: 0.05 if x == 0 else 0.25 + (x / max_count) * 0.75
+                lambda x: 0.15 if x == 0 else 0.3 + (x / max_count) * 0.7
             )
 
         # Identifica municípios com match no GeoJSON (garante que código seja string)
@@ -3051,7 +3052,7 @@ def create_choropleth_map(df, df_atores=None):
                 geojson=geojson_regiao,
                 locations=df_regiao_com_match['codigo_ibge_str'],
                 z=df_regiao_com_match['intensidade'],
-                zmin=0,
+                zmin=0.1,  # Mínimo mais alto para garantir visibilidade
                 zmax=1,
                 featureidkey="properties.codigo_ibge",
                 colorscale=build_colorscale(base_colors[regiao]),
