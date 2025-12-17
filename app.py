@@ -4166,14 +4166,24 @@ def main():
                             mask |= coluna_categoria_normalizada.isin(["startup", "startups"])
                         
                         # Empresa Âncora / Grandes Empresas Âncoras
-                        if "empresa" in cat_filtro_str and ("âncora" in cat_filtro_str or "ancora" in cat_filtro_str or "grande" in cat_filtro_str):
+                        # Busca por qualquer combinação que contenha "ancora" (mais inclusivo)
+                        if "ancora" in cat_filtro_str or "âncora" in cat_filtro_str or ("empresa" in cat_filtro_str and "grande" in cat_filtro_str):
+                            # Busca mais inclusiva: qualquer registro que contenha "ancora" ou "âncora"
+                            # Remove acentos para busca mais ampla
+                            mask |= coluna_categoria_normalizada.str.contains("ancora", case=False, na=False, regex=False)
+                            # Também busca combinação empresa + ancora (mais específico)
                             mask |= (coluna_categoria_normalizada.str.contains("empresa", case=False, na=False, regex=False) & 
                                     coluna_categoria_normalizada.str.contains("ancora", case=False, na=False, regex=False))
-                            # Também busca variações
+                            # Match exato para variações
                             mask |= coluna_categoria_normalizada == "empresa âncora"
                             mask |= coluna_categoria_normalizada == "empresa ancora"
                             mask |= coluna_categoria_normalizada == "grande empresa âncora"
                             mask |= coluna_categoria_normalizada == "grande empresa ancora"
+                            mask |= coluna_categoria_normalizada == "grandes empresas âncoras"
+                            mask |= coluna_categoria_normalizada == "grandes empresas ancora"
+                            mask |= coluna_categoria_normalizada == "grandes empresas ancoras"
+                            mask |= coluna_categoria_normalizada == "empresas âncoras"
+                            mask |= coluna_categoria_normalizada == "empresas ancoras"
                         
                         # Empresa Estatal
                         if "empresa" in cat_filtro_str and "estatal" in cat_filtro_str:
@@ -4237,15 +4247,32 @@ def main():
                                     coluna_categoria_normalizada.str.contains("apoio", case=False, na=False, regex=False))
                         
                         # Hubs, Incubadoras e Parques Tecnológicos
-                        if "hub" in cat_filtro_str or "incubadora" in cat_filtro_str or "parque" in cat_filtro_str:
+                        if "hub" in cat_filtro_str or "incubadora" in cat_filtro_str or "parque" in cat_filtro_str or "tecnologico" in cat_filtro_str:
+                            # Busca mais inclusiva: qualquer uma dessas palavras
                             mask |= coluna_categoria_normalizada.str.contains("hub", case=False, na=False, regex=False)
                             mask |= coluna_categoria_normalizada.str.contains("incubadora", case=False, na=False, regex=False)
                             mask |= coluna_categoria_normalizada.str.contains("parque", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("tecnologico", case=False, na=False, regex=False)
+                            # Match exato para a categoria completa
+                            mask |= coluna_categoria_normalizada == "hubs, incubadoras e parques tecnologicos"
+                            mask |= coluna_categoria_normalizada == "hubs, incubadoras e parques tecnológicos"
+                            mask |= coluna_categoria_normalizada == "hubs incubadoras e parques tecnologicos"
+                            # Busca por "aceleradora" também (pode estar incluída)
+                            mask |= coluna_categoria_normalizada.str.contains("aceleradora", case=False, na=False, regex=False)
                     
                     # DEBUG: Mostra quantos registros foram encontrados pela máscara
                     total_encontrados_mask = mask.sum()
                     with st.sidebar:
                         st.info(f"🔍 DEBUG: Registros encontrados pela máscara: {total_encontrados_mask}")
+                        
+                        # DEBUG: Mostra TODOS os valores únicos na coluna ANTES do filtro (para diagnóstico)
+                        if coluna_categoria_startups in df_startups_para_tabela.columns:
+                            todos_valores_unicos = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().unique()
+                            st.info(f"🔍 DEBUG: TODOS os valores únicos na coluna '{coluna_categoria_startups}':")
+                            for val in sorted(todos_valores_unicos)[:30]:
+                                st.text(f"   • '{val}'")
+                            if len(todos_valores_unicos) > 30:
+                                st.text(f"   ... e mais {len(todos_valores_unicos) - 30} valores")
                         
                         # DEBUG: Mostra quais valores na coluna correspondem às categorias filtradas
                         if total_encontrados_mask > 0 and coluna_categoria_startups in df_startups_para_tabela.columns:
@@ -4262,6 +4289,8 @@ def main():
                             except Exception as e:
                                 # Se houver erro no debug, apenas ignora (não quebra o app)
                                 pass
+                        elif total_encontrados_mask == 0:
+                            st.warning(f"⚠️ DEBUG: Nenhum registro encontrado! Verifique se os nomes das categorias no filtro correspondem aos valores na coluna '{coluna_categoria_startups}'")
                     
                     # Aplica o filtro - usa .loc para garantir alinhamento correto do índice
                     df_startups_para_tabela = df_startups_para_tabela.loc[mask].copy()
