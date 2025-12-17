@@ -2160,15 +2160,56 @@ def create_choropleth_map(df, df_atores=None):
     if 'longitude' in df_municipios.columns:
         colunas_merge.append('longitude')
 
-    # Combina dados da planilha com dados de municípios usando código IBGE
-    df_regions = df_map.merge(
-        df_municipios[colunas_merge],
+    # Começa com TODOS os municípios de MG e faz merge com dados da planilha
+    # Isso garante que todos os municípios apareçam no mapa, mesmo sem dados na planilha
+    df_regions = df_municipios[colunas_merge].copy()
+    
+    # Adiciona coluna de nome do município se não existir
+    if 'nome' not in df_regions.columns and 'nome' in df_municipios.columns:
+        df_regions['nome'] = df_municipios['nome']
+    
+    # Faz merge com dados da planilha (mantém todos os municípios de MG)
+    df_regions = df_regions.merge(
+        df_map,
         on='codigo_ibge',
-        how='left'
+        how='left',
+        suffixes=('', '_planilha')
     )
     
-    # Se o merge não trouxe o nome, usa o nome da planilha
-    df_regions['nome'] = df_regions['nome'].fillna(df_regions[coluna_municipio])
+    # Preenche dados faltantes com valores padrão
+    if coluna_municipio not in df_regions.columns:
+        df_regions[coluna_municipio] = df_regions['nome']
+    else:
+        df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
+    
+    # Para municípios sem região na planilha, usa uma região padrão baseada na maioria dos municípios próximos
+    # ou simplesmente usa a primeira região disponível como fallback
+    if coluna_regiao in df_regions.columns:
+        # Preenche regiões faltantes com a região mais comum (ou primeira disponível)
+        regiao_mais_comum = df_regions[coluna_regiao].mode()
+        if len(regiao_mais_comum) > 0:
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna(regiao_mais_comum.iloc[0])
+        else:
+            # Se não houver região na planilha, usa uma região padrão
+            df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
+    else:
+        # Se não houver coluna de região na planilha, cria uma padrão
+        df_regions[coluna_regiao] = "Centro"
+    
+    # Preenche quantidades com 0 se não existirem
+    if coluna_qtd_startups not in df_regions.columns:
+        df_regions[coluna_qtd_startups] = 0
+    else:
+        df_regions[coluna_qtd_startups] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
+    
+    # Preenche outras colunas de quantidade com 0 se não existirem
+    for col_qtd in [coluna_qtd_empresas_ancora, coluna_qtd_fundos_e_investidores, 
+                    coluna_qtd_universidades_icts, coluna_qtd_orgaos, 
+                    coluna_qtd_hubs_incubadoras_parquestecnologicos]:
+        if col_qtd and col_qtd not in df_regions.columns:
+            df_regions[col_qtd] = 0
+        elif col_qtd:
+            df_regions[col_qtd] = pd.to_numeric(df_regions[col_qtd], errors='coerce').fillna(0).astype(int)
     
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
