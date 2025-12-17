@@ -2060,10 +2060,6 @@ def create_choropleth_map(df, df_atores=None):
         st.error("❌ Coluna de município não encontrada na planilha.")
         return
 
-    if not coluna_codigo_ibge:
-        st.error("❌ Coluna de código IBGE não encontrada na planilha.")
-        return
-
     # Se não encontrou coluna de quantidade de startups, vai calcular a partir dos dados de atores
     if not coluna_qtd_startups:
         # Cria coluna temporária com zeros - será preenchida depois com dados de atores
@@ -2076,6 +2072,43 @@ def create_choropleth_map(df, df_atores=None):
     except Exception as e:
         st.error(f"❌ Falha ao carregar GeoJSON: {e}")
         return
+
+    # Carrega dados de municípios para obter códigos IBGE se necessário
+    df_municipios = load_municipios_com_coordenadas()
+    
+    if df_municipios.empty:
+        st.error("❌ Não foi possível carregar dados de municípios. O mapa não pode ser exibido.")
+        return
+
+    # Se não encontrou coluna de código IBGE, calcula a partir do nome do município
+    if not coluna_codigo_ibge:
+        # Faz merge pelo nome do município para obter código IBGE
+        df_temp = df[[coluna_municipio, coluna_regiao]].copy()
+        df_temp = df_temp.dropna(subset=[coluna_municipio, coluna_regiao])
+        
+        # Normaliza nomes para fazer match (remove acentos, converte para minúsculas)
+        df_temp['nome_normalizado'] = df_temp[coluna_municipio].astype(str).str.lower().str.strip()
+        df_municipios['nome_normalizado'] = df_municipios['nome'].astype(str).str.lower().str.strip()
+        
+        # Faz merge pelo nome normalizado
+        df_temp = df_temp.merge(
+            df_municipios[['codigo_ibge', 'nome_normalizado']],
+            on='nome_normalizado',
+            how='left'
+        )
+        
+        # Se conseguiu fazer match, adiciona a coluna ao DataFrame original
+        if 'codigo_ibge' in df_temp.columns and df_temp['codigo_ibge'].notna().sum() > 0:
+            # Adiciona código IBGE ao DataFrame original
+            df = df.merge(
+                df_temp[[coluna_municipio, 'codigo_ibge']].drop_duplicates(subset=[coluna_municipio]),
+                on=coluna_municipio,
+                how='left'
+            )
+            coluna_codigo_ibge = 'codigo_ibge'
+        else:
+            st.error("❌ Não foi possível obter códigos IBGE a partir dos nomes dos municípios.")
+            return
 
     # Dados da planilha normalizados
     colunas_necessarias = [coluna_codigo_ibge, coluna_municipio, coluna_regiao]
@@ -2094,10 +2127,16 @@ def create_choropleth_map(df, df_atores=None):
     
     df_map = df[colunas_necessarias].copy()
     df_map = df_map.dropna(subset=[coluna_municipio, coluna_regiao])
-    df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
-    # Remove linhas com código IBGE inválido
-    df_map = df_map[df_map[coluna_codigo_ibge].notna()]
-    df_map[coluna_codigo_ibge] = df_map[coluna_codigo_ibge].astype(str)  # Garante que seja string
+    
+    # Normaliza código IBGE se existir
+    if coluna_codigo_ibge in df_map.columns:
+        df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
+        # Remove linhas com código IBGE inválido
+        df_map = df_map[df_map[coluna_codigo_ibge].notna()]
+        df_map[coluna_codigo_ibge] = df_map[coluna_codigo_ibge].astype(str)  # Garante que seja string
+    else:
+        st.error("❌ Não foi possível obter códigos IBGE para os municípios.")
+        return
     df_map[coluna_qtd_startups] = pd.to_numeric(df_map[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
     if coluna_qtd_empresas_ancora in df_map.columns:
         df_map[coluna_qtd_empresas_ancora] = pd.to_numeric(df_map[coluna_qtd_empresas_ancora], errors='coerce').fillna(0).astype(int)
@@ -2110,12 +2149,7 @@ def create_choropleth_map(df, df_atores=None):
     if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_map.columns:
         df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos] = pd.to_numeric(df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0).astype(int)
 
-    # Base de municípios com latitude/longitude (para coordenadas se necessário)
-    df_municipios = load_municipios_com_coordenadas()
-    
-    if df_municipios.empty:
-        st.warning("⚠️ Não foi possível carregar dados de coordenadas dos municípios. O mapa pode não funcionar corretamente.")
-        return
+    # df_municipios já foi carregado acima
 
     # Seleciona apenas colunas disponíveis para o merge
     colunas_merge = ['codigo_ibge']
