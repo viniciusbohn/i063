@@ -2064,8 +2064,20 @@ def create_choropleth_map(df, df_atores=None):
             break
 
     if not coluna_regiao:
-        st.error("❌ Coluna de região não encontrada na planilha. Este mapa requer uma coluna de região.")
-        return
+        # Debug: mostra colunas disponíveis
+        colunas_disponiveis = list(df.columns)
+        st.error(f"❌ Coluna de região não encontrada na planilha. Este mapa requer uma coluna de região.")
+        st.info(f"📋 Colunas disponíveis na planilha: {', '.join(colunas_disponiveis[:20])}{'...' if len(colunas_disponiveis) > 20 else ''}")
+        # Tenta encontrar qualquer coluna que contenha 'regiao' ou 'mesorregiao'
+        for col in colunas_disponiveis:
+            col_lower = str(col).lower()
+            if 'regiao' in col_lower or 'mesorregiao' in col_lower or 'região' in col_lower or 'mesorregião' in col_lower:
+                st.warning(f"⚠️ Encontrada coluna similar: '{col}' - usando esta coluna como região.")
+                coluna_regiao = col
+                break
+        
+        if not coluna_regiao:
+            return
 
     if not coluna_municipio:
         st.error("❌ Coluna de município não encontrada na planilha.")
@@ -4864,3 +4876,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
