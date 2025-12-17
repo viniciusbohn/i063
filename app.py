@@ -1041,28 +1041,38 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 # Renomeia as colunas
                 df.columns = expected_cols
                 # Remove as primeiras linhas que são dados concatenados
-                # Procura pela primeira linha que tem dados válidos (primeira coluna com menos de 50 caracteres)
+                # Procura pela primeira linha que tem dados válidos
+                # IMPORTANTE: Verifica se a primeira linha é um cabeçalho válido
                 if len(df) > 0:
-                    mask = df.iloc[:, 0].astype(str).str.len() < 50
-                    if mask.any():
-                        # Encontra o primeiro índice True na máscara
-                        try:
-                            # Tenta usar idxmax (retorna o índice do primeiro True)
-                            first_valid_idx = mask.idxmax()
-                        except:
-                            # Se idxmax não funcionar, usa argmax ou busca manual
+                    # Verifica se a primeira linha parece ser um cabeçalho (contém "Nome", "Categoria", etc.)
+                    primeira_linha = df.iloc[0, 0] if len(df) > 0 else ""
+                    primeira_linha_str = str(primeira_linha).lower().strip()
+                    
+                    # Se a primeira linha parece ser um cabeçalho, remove apenas ela
+                    if any(palavra in primeira_linha_str for palavra in ['nome', 'name', 'categoria', 'category', 'ator', 'actor']):
+                        df = df.iloc[1:].reset_index(drop=True)
+                    else:
+                        # Caso contrário, procura pela primeira linha válida (primeira coluna com menos de 50 caracteres)
+                        mask = df.iloc[:, 0].astype(str).str.len() < 50
+                        if mask.any():
+                            # Encontra o primeiro índice True na máscara
                             try:
-                                first_valid_idx = mask.argmax()
+                                # Tenta usar idxmax (retorna o índice do primeiro True)
+                                first_valid_idx = mask.idxmax()
                             except:
-                                # Busca manual pelo primeiro True
-                                first_valid_idx = 0
-                                for i, val in enumerate(mask):
-                                    if val:
-                                        first_valid_idx = i
-                                        break
-                        # Se encontrou uma linha válida, remove tudo antes dela
-                        if first_valid_idx > 0:
-                            df = df.iloc[first_valid_idx:].reset_index(drop=True)
+                                # Se idxmax não funcionar, usa argmax ou busca manual
+                                try:
+                                    first_valid_idx = mask.argmax()
+                                except:
+                                    # Busca manual pelo primeiro True
+                                    first_valid_idx = 0
+                                    for i, val in enumerate(mask):
+                                        if val:
+                                            first_valid_idx = i
+                                            break
+                            # Se encontrou uma linha válida, remove tudo antes dela
+                            if first_valid_idx > 0:
+                                df = df.iloc[first_valid_idx:].reset_index(drop=True)
         
         # Remove linhas completamente vazias
         df = df.dropna(how='all')
@@ -1078,9 +1088,14 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
                 df = df[mask]
                 # Remove linhas que são claramente cabeçalhos duplicados
-                df = df[~df[primeira_col].astype(str).str.contains('^name$|^Name$|^NAME$', case=False, na=False, regex=True)]
+                df = df[~df[primeira_col].astype(str).str.contains('^name$|^Name$|^NAME$|^nome do ator$', case=False, na=False, regex=True)]
                 # Remove linhas onde a primeira coluna tem mais de 100 caracteres (provavelmente dados concatenados)
-                df = df[df[primeira_col].astype(str).str.len() < 100]
+                # MAS apenas se não for um nome válido de empresa/ator
+                # Não remove se parecer um nome real (contém espaços, letras, números normais)
+                df = df[
+                    (df[primeira_col].astype(str).str.len() < 100) | 
+                    (df[primeira_col].astype(str).str.contains(r'^[A-Za-z0-9\s\-\.]+$', na=False, regex=True))
+                ]
         
         return df
     except Exception as e:
@@ -4065,6 +4080,13 @@ def main():
         municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
         categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
         segmentos_filtro_tabela = st.session_state.get("filtro_segmentos", [])
+        
+        # DEBUG: Mostra primeiras linhas dos dados carregados para verificar se estão corretos
+        with st.expander("🔍 DEBUG: Primeiras Linhas dos Dados Carregados", expanded=True):
+            st.info(f"**Total de registros carregados:** {total_inicial}")
+            st.info(f"**Colunas disponíveis:** {list(df_startups_para_tabela.columns)}")
+            st.info("**Primeiras 10 linhas dos dados:**")
+            st.dataframe(df_startups_para_tabela.head(10))
         
         with st.sidebar:
             st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
