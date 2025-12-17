@@ -2289,8 +2289,9 @@ def create_choropleth_map(df, df_atores=None):
     else:
         df_regions['count'] = 0
     
-    # Mantém somente municípios que têm região definida na planilha
-    df_regions = df_regions[df_regions['regiao_final'].notna()]
+    # Mantém todos os municípios (mesmo sem região na planilha, já foram preenchidos acima)
+    # Remove apenas municípios sem código IBGE válido
+    df_regions = df_regions[df_regions['codigo_ibge'].notna()]
     
     # Define cores para TODAS as regiões ANTES de aplicar filtros
     # Isso garante que cada região mantenha sua cor original
