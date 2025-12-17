@@ -1100,8 +1100,12 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         df = df.dropna(how='all')
         
         # Remove espaços dos nomes das colunas (importante!)
-        # Converte para string primeiro caso as colunas sejam numéricas
-        df.columns = [str(col).strip() for col in df.columns]
+        # Converte para string primeiro caso as colunas sejam numéricas ou de outro tipo
+        try:
+            df.columns = [str(col).strip() if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
+        except Exception:
+            # Se houver erro, apenas converte para string sem strip
+            df.columns = [str(col) if col is not None else f'Coluna_{i}' for i, col in enumerate(df.columns)]
         
         # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
         # IMPORTANTE: Seja conservador - só remove se realmente estiver vazio
