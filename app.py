@@ -2789,28 +2789,46 @@ def create_choropleth_map(df, df_atores=None):
             ]
         
         # Aplica filtro de categoria - ajusta os valores de count baseado nas categorias selecionadas
+        # USA AS COLUNAS DA PLANILHA diretamente (qtd_startups, qtd_empresas_ancora, etc.)
         if categorias_selecionadas:
             df_regions_filtrado = df_regions_filtrado.copy()
-            # Recalcula o count baseado nas categorias selecionadas
+            # Recalcula o count baseado nas categorias selecionadas usando as colunas da planilha
             count_filtrado = pd.Series(0, index=df_regions_filtrado.index)
             
-            if "Startup" in categorias_selecionadas and coluna_qtd_startups in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_startups], errors='coerce').fillna(0)
+            # Garante que estamos usando os nomes corretos das colunas encontradas na planilha
+            if "Startup" in categorias_selecionadas:
+                # Se há filtro de segmentos, usa a coluna temporária filtrada, senão usa a original da planilha
+                if 'qtd_startups_temp_filtrado' in df_regions_filtrado.columns:
+                    col_qtd_startups_uso = 'qtd_startups_temp_filtrado'
+                else:
+                    col_qtd_startups_uso = coluna_qtd_startups if coluna_qtd_startups in df_regions_filtrado.columns else 'qtd_startups'
+                if col_qtd_startups_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_startups_uso], errors='coerce').fillna(0)
             
-            if "Empresa Âncora" in categorias_selecionadas and coluna_qtd_empresas_ancora in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_empresas_ancora], errors='coerce').fillna(0)
+            if "Empresa Âncora" in categorias_selecionadas:
+                col_qtd_empresas_ancora_uso = coluna_qtd_empresas_ancora if coluna_qtd_empresas_ancora in df_regions_filtrado.columns else 'qtd_empresas_ancora'
+                if col_qtd_empresas_ancora_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_empresas_ancora_uso], errors='coerce').fillna(0)
             
-            if "Fundos e Investidores" in categorias_selecionadas and coluna_qtd_fundos_e_investidores in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0)
+            if "Fundos e Investidores" in categorias_selecionadas:
+                col_qtd_fundos_uso = coluna_qtd_fundos_e_investidores if coluna_qtd_fundos_e_investidores in df_regions_filtrado.columns else 'qtd_fundos_e_investidores'
+                if col_qtd_fundos_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_fundos_uso], errors='coerce').fillna(0)
             
-            if "Universidades e ICTs" in categorias_selecionadas and coluna_qtd_universidades_icts in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_universidades_icts], errors='coerce').fillna(0)
+            if "Universidades e ICTs" in categorias_selecionadas:
+                col_qtd_universidades_uso = coluna_qtd_universidades_icts if coluna_qtd_universidades_icts in df_regions_filtrado.columns else 'qtd_universidades_icts'
+                if col_qtd_universidades_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_universidades_uso], errors='coerce').fillna(0)
             
-            if "Órgãos Públicos e Apoio" in categorias_selecionadas and coluna_qtd_orgaos in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_orgaos], errors='coerce').fillna(0)
+            if "Órgãos Públicos e Apoio" in categorias_selecionadas:
+                col_qtd_orgaos_uso = coluna_qtd_orgaos if coluna_qtd_orgaos in df_regions_filtrado.columns else 'qtd_orgaos'
+                if col_qtd_orgaos_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_orgaos_uso], errors='coerce').fillna(0)
             
-            if "Hubs, Incubadoras e Parques Tecnológicos" in categorias_selecionadas and coluna_qtd_hubs_incubadoras_parquestecnologicos in df_regions_filtrado.columns:
-                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0)
+            if "Hubs, Incubadoras e Parques Tecnológicos" in categorias_selecionadas:
+                col_qtd_hubs_uso = coluna_qtd_hubs_incubadoras_parquestecnologicos if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_regions_filtrado.columns else 'qtd_hubs_incubadoras_parquestecnologicos'
+                if col_qtd_hubs_uso in df_regions_filtrado.columns:
+                    count_filtrado += pd.to_numeric(df_regions_filtrado[col_qtd_hubs_uso], errors='coerce').fillna(0)
             
             df_regions_filtrado['count'] = count_filtrado.astype(int)
         elif categorias_disponiveis:
