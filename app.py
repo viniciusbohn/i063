@@ -2721,8 +2721,43 @@ def create_choropleth_map(df, df_atores=None):
         # Calcula totais baseado nos dados filtrados do mapa (que já têm filtros de região e município aplicados)
         contadores = {}
         
-        # Startups - usa dados agregados do mapa (soma a coluna qtd_startups dos municípios filtrados)
-        if coluna_qtd_startups in df_regions_filtrado.columns:
+        # Startups - calcula diretamente dos atores (garante filtro por cidade preenchida)
+        if df_atores is not None and not df_atores.empty:
+            # Procura colunas nos dados de atores
+            coluna_categoria_atores = None
+            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+            for col in df_atores.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome.lower() in col_lower for nome in possiveis_nomes_categoria):
+                    coluna_categoria_atores = col
+                    break
+            
+            coluna_cidade_atores = None
+            possiveis_nomes_cidade = ['cidade', 'municipio', 'município', 'city']
+            for col in df_atores.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome.lower() in col_lower for nome in possiveis_nomes_cidade):
+                    coluna_cidade_atores = col
+                    break
+            
+            if coluna_categoria_atores and coluna_cidade_atores:
+                # Conta apenas startups com cidade preenchida
+                df_startups_com_cidade = df_atores[
+                    (df_atores[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup') &
+                    (df_atores[coluna_cidade_atores].notna()) &
+                    (df_atores[coluna_cidade_atores].astype(str).str.strip() != '') &
+                    (df_atores[coluna_cidade_atores].astype(str).str.strip() != 'nan')
+                ]
+                contadores["Startups"] = len(df_startups_com_cidade)
+            else:
+                # Fallback: usa dados agregados do mapa se não conseguir calcular dos atores
+                if coluna_qtd_startups in df_regions_filtrado.columns:
+                    total_startups = pd.to_numeric(df_regions_filtrado[coluna_qtd_startups], errors='coerce').fillna(0).sum()
+                    contadores["Startups"] = int(total_startups)
+                else:
+                    contadores["Startups"] = 0
+        elif coluna_qtd_startups in df_regions_filtrado.columns:
+            # Fallback: usa dados agregados do mapa se não houver dados de atores
             total_startups = pd.to_numeric(df_regions_filtrado[coluna_qtd_startups], errors='coerce').fillna(0).sum()
             contadores["Startups"] = int(total_startups)
         else:
