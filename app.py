@@ -1013,6 +1013,26 @@ def load_data_from_sheets(sheet_name, force_reload=False):
             "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk",
         ]
         sheet_id_candidates = [s for s in sheet_id_candidates if isinstance(s, str) and s.strip()]
+
+        # Alguns ambientes/abas usam nomes sem acentos (ex.: "Municipios e Regioes").
+        # Tentamos variações do nome da aba para evitar cair na aba errada.
+        def _norm(s: str) -> str:
+            try:
+                s = unicodedata.normalize("NFKD", str(s))
+                s = "".join(ch for ch in s if not unicodedata.combining(ch))
+                return s.strip().lower()
+            except Exception:
+                return str(s).strip().lower()
+
+        sheet_name_candidates = []
+        sheet_name_candidates.append(sheet_name)
+        sheet_name_no_acc = _norm(sheet_name)
+        # reconstitui com capitalização original aproximada (mantém espaços e símbolos)
+        sheet_name_candidates.append(" ".join(word.capitalize() for word in sheet_name_no_acc.split()))
+        # também tenta exatamente sem acentos mantendo caixa original de palavras
+        sheet_name_candidates.append(unicodedata.normalize("NFKD", str(sheet_name)).encode("ascii", "ignore").decode("ascii"))
+        # garante unicidade e remove vazios
+        sheet_name_candidates = [s for s in dict.fromkeys([c for c in sheet_name_candidates if isinstance(c, str) and c.strip()])]
         
         # MÉTODO 1: Tenta usar API do Google Sheets (sem limitação de linhas)
         if GSPREAD_AVAILABLE:
@@ -1045,20 +1065,24 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     if spreadsheet is None:
                         raise last_err if last_err else Exception("Não foi possível abrir a planilha por ID")
                     
-                    # Abre a aba
-                    try:
-                        worksheet = spreadsheet.worksheet(sheet_name)
-                    except gspread.exceptions.WorksheetNotFound:
-                        # Tenta encontrar a aba por nome similar
-                        all_sheets = spreadsheet.worksheets()
-                        worksheet = None
+                    # Abre a aba (tenta variações do nome, inclusive sem acentos)
+                    worksheet = None
+                    all_sheets = spreadsheet.worksheets()
+                    for candidate in sheet_name_candidates:
+                        try:
+                            worksheet = spreadsheet.worksheet(candidate)
+                            break
+                        except Exception:
+                            worksheet = None
+                    if worksheet is None:
+                        # fallback: compara normalizado (sem acentos)
+                        target_norm = _norm(sheet_name)
                         for ws in all_sheets:
-                            if ws.title.strip() == sheet_name.strip():
+                            if _norm(ws.title) == target_norm:
                                 worksheet = ws
                                 break
-                        
-                        if worksheet is None:
-                            raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {[ws.title for ws in all_sheets]}")
+                    if worksheet is None:
+                        raise Exception(f"Aba '{sheet_name}' não encontrada. Abas disponíveis: {[ws.title for ws in all_sheets]}")
                     
                     # Obtém TODOS os valores da planilha (sem limitação)
                     # IMPORTANTE: usar valores calculados (não fórmulas), senão colunas como `qtd_startups`
@@ -1118,41 +1142,46 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         # Método 1: Tenta com a URL de export CSV direta usando o nome da aba
         # Adiciona parâmetros para garantir que pega todos os dados
         try:
-            encoded_sheet_name = quote(sheet_name, safe="")
+            last_err = None
+            df = None
             last_err = None
             for sid in sheet_id_candidates:
-                # Tenta com range grande para pegar todas as linhas
-                sheet_url = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z10000"
-                sheet_url_used = sheet_url
-                try:
-                    # IMPORTANTE: header=None inicialmente para não perder a primeira linha
+                for sh in sheet_name_candidates:
+                    encoded_sheet_name = quote(sh, safe="")
+                    # Tenta com range grande para pegar todas as linhas
+                    sheet_url = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z10000"
+                    sheet_url_used = sheet_url
                     try:
-                        df_try = pd.read_csv(sheet_url, encoding='utf-8', header=None)
-                    except Exception:
+                        # IMPORTANTE: header=None inicialmente para não perder a primeira linha
                         try:
-                            df_try = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                            df_try = pd.read_csv(sheet_url, encoding='utf-8', header=None)
                         except Exception:
-                            df_try = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
-                    df = df_try
+                            try:
+                                df_try = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                            except Exception:
+                                df_try = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
+                        df = df_try
 
-                    # Se o método 1 funcionou mas tem poucas linhas, tenta sem range
-                    if df is not None and len(df) < 2000:
-                        sheet_url2 = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
-                        try:
-                            df2 = pd.read_csv(sheet_url2, encoding='utf-8', header=None)
-                            if len(df2) > len(df):
-                                df = df2
-                                sheet_url_used = sheet_url2
-                        except Exception:
-                            pass
+                        # Se o método 1 funcionou mas tem poucas linhas, tenta sem range
+                        if df is not None and len(df) < 2000:
+                            sheet_url2 = f"https://docs.google.com/spreadsheets/d/{sid}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+                            try:
+                                df2 = pd.read_csv(sheet_url2, encoding='utf-8', header=None)
+                                if len(df2) > len(df):
+                                    df = df2
+                                    sheet_url_used = sheet_url2
+                            except Exception:
+                                pass
 
-                    # sucesso — fixa o ID para os próximos métodos
-                    sheet_id_env = sid
+                        # sucesso — fixa o ID para os próximos métodos
+                        sheet_id_env = sid
+                        break
+                    except Exception as e:
+                        last_err = e
+                        df = None
+                        continue
+                if df is not None:
                     break
-                except Exception as e:
-                    last_err = e
-                    df = None
-                    continue
             if df is None and last_err is not None:
                 raise last_err
         except Exception as e:
