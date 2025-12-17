@@ -2173,8 +2173,8 @@ def create_choropleth_map(df, df_atores=None):
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
     
-    # Se a coluna qtd_startups estava vazia ou não existia, calcula a partir dos dados de atores
-    if df_atores is not None and not df_atores.empty and (coluna_qtd_startups not in df_regions.columns or df_regions[coluna_qtd_startups].sum() == 0):
+    # Sempre recalcula a partir dos dados de atores se disponível (garante filtro por cidade preenchida)
+    if df_atores is not None and not df_atores.empty:
         # Procura colunas nos dados de atores
         coluna_categoria_atores = None
         possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
