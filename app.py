@@ -2283,12 +2283,13 @@ def create_choropleth_map(df, df_atores=None):
             df_regions[coluna_regiao] = df_regions[coluna_regiao].fillna("Centro")
     
     # Preenche quantidades usando as colunas encontradas na planilha
-    # Usa os nomes exatos mapeados
+    # Para municípios que não estão na planilha, preenche com 0
     for col_qtd_exata, col_encontrada in colunas_qtd_encontradas.items():
         if col_encontrada and col_encontrada in df_regions.columns:
+            # Preenche NaN com 0 (municípios que não estão na planilha)
             df_regions[col_encontrada] = pd.to_numeric(df_regions[col_encontrada], errors='coerce').fillna(0).astype(int)
         else:
-            # Se não encontrou, cria coluna com zeros
+            # Se não encontrou a coluna na planilha, cria coluna com zeros para todos os municípios
             df_regions[col_qtd_exata] = 0
     
     # Atualiza variáveis para usar as colunas encontradas
@@ -2300,18 +2301,36 @@ def create_choropleth_map(df, df_atores=None):
     coluna_qtd_hubs_incubadoras_parquestecnologicos = colunas_qtd_encontradas.get('qtd_hubs_incubadoras_parquestecnologicos', 'qtd_hubs_incubadoras_parquestecnologicos')
     
     # Garante que todas as colunas existem (cria com zeros se não existirem)
+    # Isso é importante para municípios que não estão na planilha
     if coluna_qtd_startups not in df_regions.columns:
         df_regions[coluna_qtd_startups] = 0
+    else:
+        df_regions[coluna_qtd_startups] = df_regions[coluna_qtd_startups].fillna(0).astype(int)
+    
     if coluna_qtd_empresas_ancora not in df_regions.columns:
         df_regions[coluna_qtd_empresas_ancora] = 0
+    else:
+        df_regions[coluna_qtd_empresas_ancora] = df_regions[coluna_qtd_empresas_ancora].fillna(0).astype(int)
+    
     if coluna_qtd_fundos_e_investidores not in df_regions.columns:
         df_regions[coluna_qtd_fundos_e_investidores] = 0
+    else:
+        df_regions[coluna_qtd_fundos_e_investidores] = df_regions[coluna_qtd_fundos_e_investidores].fillna(0).astype(int)
+    
     if coluna_qtd_universidades_icts not in df_regions.columns:
         df_regions[coluna_qtd_universidades_icts] = 0
+    else:
+        df_regions[coluna_qtd_universidades_icts] = df_regions[coluna_qtd_universidades_icts].fillna(0).astype(int)
+    
     if coluna_qtd_orgaos not in df_regions.columns:
         df_regions[coluna_qtd_orgaos] = 0
+    else:
+        df_regions[coluna_qtd_orgaos] = df_regions[coluna_qtd_orgaos].fillna(0).astype(int)
+    
     if coluna_qtd_hubs_incubadoras_parquestecnologicos not in df_regions.columns:
         df_regions[coluna_qtd_hubs_incubadoras_parquestecnologicos] = 0
+    else:
+        df_regions[coluna_qtd_hubs_incubadoras_parquestecnologicos] = df_regions[coluna_qtd_hubs_incubadoras_parquestecnologicos].fillna(0).astype(int)
     
     # Renomeia para manter consistência (cria regiao_final primeiro)
     df_regions['regiao_final'] = df_regions[coluna_regiao]
