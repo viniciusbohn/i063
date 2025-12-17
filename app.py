@@ -1000,7 +1000,8 @@ def load_data_from_sheets(sheet_name, force_reload=False):
     Usa API do Google Sheets (gspread) se disponível, caso contrário usa export CSV
     """
     try:
-        sheet_id = "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk"
+        # ID correto da planilha (observação: já tivemos bug por troca de caractere aqui)
+        sheet_id = "104LamJgsPmwAldSBUOSsAHXo4m356by44VnGgk2avk"
         
         # MÉTODO 1: Tenta usar API do Google Sheets (sem limitação de linhas)
         if GSPREAD_AVAILABLE:
@@ -1040,9 +1041,17 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     # Obtém TODOS os valores da planilha (sem limitação)
                     # IMPORTANTE: usar valores calculados (não fórmulas), senão colunas como `qtd_startups`
                     # podem vir como "=COUNTIFS(...)" e virarem 0 no pd.to_numeric(errors='coerce').
-                    all_values = worksheet.get_all_values(
-                        value_render_option="UNFORMATTED_VALUE"
-                    )
+                    #
+                    # `get_all_values` nem sempre suporta `value_render_option` dependendo da versão do gspread.
+                    # Preferimos `get_values` com `UNFORMATTED_VALUE` e fazemos fallback com segurança.
+                    try:
+                        all_values = worksheet.get_values(value_render_option="UNFORMATTED_VALUE")
+                    except TypeError:
+                        # Versão do gspread sem suporte ao parâmetro
+                        all_values = worksheet.get_all_values()
+                    except Exception:
+                        # Qualquer outro problema: tenta o método padrão
+                        all_values = worksheet.get_all_values()
                     
                     if len(all_values) == 0:
                         raise Exception("Planilha vazia")
@@ -1066,12 +1075,15 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                         if primeira_col in df.columns:
                             mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
                             df = df[mask]
-                    
+                    # Marca método usado (debug leve)
+                    st.session_state["_dados_origem"] = f"gspread:{sheet_name}"
                     return df
                     
             except FileNotFoundError:
+                st.session_state["_dados_origem"] = "csv:fallback (credentials not found)"
                 pass  # Silenciosamente usa fallback CSV
-            except Exception as e:
+            except Exception:
+                st.session_state["_dados_origem"] = "csv:fallback (gspread error)"
                 pass  # Silenciosamente usa fallback CSV
         
         # MÉTODO 2: Fallback para export CSV (pode ter limitação de ~2000 linhas)
