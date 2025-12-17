@@ -1040,19 +1040,23 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 expected_cols = expected_cols[:num_cols]
                 # Renomeia as colunas
                 df.columns = expected_cols
-                # IMPORTANTE: Não remove linhas automaticamente - pode estar removendo dados válidos
-                # Apenas remove se a primeira linha for claramente um cabeçalho duplicado
+                
+                # IMPORTANTE: Verifica se a primeira linha é um cabeçalho duplicado
+                # Mas NÃO remove linhas de dados válidos
                 if len(df) > 0:
-                    primeira_linha = df.iloc[0, 0] if len(df) > 0 else ""
-                    primeira_linha_str = str(primeira_linha).lower().strip()
+                    primeira_linha = str(df.iloc[0, 0]).lower().strip() if pd.notna(df.iloc[0, 0]) else ""
                     
-                    # Remove apenas se a primeira linha for claramente um cabeçalho (contém palavras-chave de cabeçalho)
-                    # E tem menos de 100 caracteres (cabeçalhos são curtos)
-                    if (len(primeira_linha_str) < 100 and 
-                        any(palavra in primeira_linha_str for palavra in ['nome do ator', 'name', 'categoria', 'category', 'ator', 'actor']) and
-                        # Verifica se parece ser um cabeçalho (não tem números, não parece um nome de empresa)
-                        not any(char.isdigit() for char in primeira_linha_str) and
-                        len(primeira_linha_str.split()) <= 5):  # Cabeçalhos têm poucas palavras
+                    # Remove APENAS se for claramente um cabeçalho duplicado
+                    # Critérios muito restritivos para não remover dados válidos
+                    is_cabecalho = (
+                        len(primeira_linha) < 30 and  # Cabeçalhos são curtos
+                        any(palavra in primeira_linha for palavra in ['nome do ator', 'name', 'categoria', 'category']) and
+                        not any(char.isdigit() for char in primeira_linha) and  # Não tem números
+                        len(primeira_linha.split()) <= 3  # Muito poucas palavras
+                    )
+                    
+                    if is_cabecalho:
+                        # Remove apenas a primeira linha (cabeçalho duplicado)
                         df = df.iloc[1:].reset_index(drop=True)
         
         # Remove linhas completamente vazias
@@ -1062,21 +1066,27 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         df.columns = df.columns.str.strip()
         
         # Remove linhas onde a primeira coluna está vazia (NaN ou string vazia)
+        # IMPORTANTE: Seja conservador - só remove se realmente estiver vazio
         if len(df) > 0 and len(df.columns) > 0:
             primeira_col = df.columns[0]
             if primeira_col in df.columns:
-                # Remove linhas onde a primeira coluna é NaN OU string vazia (após remover espaços)
+                # Remove APENAS linhas onde a primeira coluna é NaN OU string completamente vazia
                 mask = df[primeira_col].notna() & (df[primeira_col].astype(str).str.strip() != '')
                 df = df[mask]
-                # Remove linhas que são claramente cabeçalhos duplicados
-                df = df[~df[primeira_col].astype(str).str.contains('^name$|^Name$|^NAME$|^nome do ator$', case=False, na=False, regex=True)]
-                # Remove linhas onde a primeira coluna tem mais de 100 caracteres (provavelmente dados concatenados)
-                # MAS apenas se não for um nome válido de empresa/ator
-                # Não remove se parecer um nome real (contém espaços, letras, números normais)
-                df = df[
-                    (df[primeira_col].astype(str).str.len() < 100) | 
-                    (df[primeira_col].astype(str).str.contains(r'^[A-Za-z0-9\s\-\.]+$', na=False, regex=True))
-                ]
+                
+                # Remove APENAS linhas que são claramente cabeçalhos duplicados (match exato)
+                # Não remove se tiver qualquer outro conteúdo
+                df = df[~df[primeira_col].astype(str).str.strip().str.lower().isin([
+                    'name', 'nome', 'nome do ator', 'categoria', 'category'
+                ])]
+                
+                # NÃO remove linhas longas - podem ser nomes válidos de empresas/atores
+                # Apenas remove se for claramente dados concatenados (muito longo E sem espaços)
+                # Mas isso é raro, então vamos ser muito conservadores
+                # df = df[
+                #     (df[primeira_col].astype(str).str.len() < 200) | 
+                #     (df[primeira_col].astype(str).str.contains(r'\s', na=False, regex=True))  # Tem espaços = provavelmente válido
+                # ]
         
         return df
     except Exception as e:
