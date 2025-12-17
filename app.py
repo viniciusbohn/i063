@@ -4144,7 +4144,8 @@ def main():
                 if coluna_categoria_startups:
                     # Mapeia categorias do filtro do mapa para categorias reais na tabela
                     # Usa busca case-insensitive e parcial para melhor matching
-                    mask = pd.Series([False] * len(df_startups_para_tabela))
+                    # IMPORTANTE: Garante que a máscara tenha o mesmo índice do DataFrame
+                    mask = pd.Series([False] * len(df_startups_para_tabela), index=df_startups_para_tabela.index)
                     
                     # Normaliza a coluna de categoria para comparação
                     coluna_categoria_normalizada = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().str.lower()
@@ -4247,16 +4248,23 @@ def main():
                         st.info(f"🔍 DEBUG: Registros encontrados pela máscara: {total_encontrados_mask}")
                         
                         # DEBUG: Mostra quais valores na coluna correspondem às categorias filtradas
-                        if total_encontrados_mask > 0:
-                            valores_encontrados = df_startups_para_tabela[mask][coluna_categoria_startups].astype(str).str.strip().value_counts()
-                            st.info(f"🔍 DEBUG: Valores encontrados na coluna que correspondem ao filtro:")
-                            for valor, qtd in valores_encontrados.head(20).items():
-                                st.text(f"   • '{valor}': {qtd}")
-                            if len(valores_encontrados) > 20:
-                                st.text(f"   ... e mais {len(valores_encontrados) - 20} valores")
+                        if total_encontrados_mask > 0 and coluna_categoria_startups in df_startups_para_tabela.columns:
+                            try:
+                                # Garante que a máscara está alinhada com o índice do DataFrame
+                                df_filtrado_debug = df_startups_para_tabela.loc[mask]
+                                if coluna_categoria_startups in df_filtrado_debug.columns:
+                                    valores_encontrados = df_filtrado_debug[coluna_categoria_startups].astype(str).str.strip().value_counts()
+                                    st.info(f"🔍 DEBUG: Valores encontrados na coluna que correspondem ao filtro:")
+                                    for valor, qtd in valores_encontrados.head(20).items():
+                                        st.text(f"   • '{valor}': {qtd}")
+                                    if len(valores_encontrados) > 20:
+                                        st.text(f"   ... e mais {len(valores_encontrados) - 20} valores")
+                            except Exception as e:
+                                # Se houver erro no debug, apenas ignora (não quebra o app)
+                                pass
                     
-                    # Aplica o filtro
-                    df_startups_para_tabela = df_startups_para_tabela[mask].copy()
+                    # Aplica o filtro - usa .loc para garantir alinhamento correto do índice
+                    df_startups_para_tabela = df_startups_para_tabela.loc[mask].copy()
                     
                     # DEBUG: Mostra total depois do filtro de categoria
                     total_depois_categoria = len(df_startups_para_tabela)
