@@ -992,13 +992,18 @@ def load_data_from_sheets(sheet_name, force_reload=False):
     try:
         sheet_id = "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk"
         
-        # Método 1: Tenta com a URL de export CSV direta usando o nome da aba
-        # IMPORTANTE: Não usa skiprows ou header para não pular linhas válidas
+        # IMPORTANTE: Google Sheets CSV export pode ter limitações
+        # Tentamos múltiplos métodos para garantir que pegamos todos os dados
+        
         df = None
         sheet_url_used = None
+        
+        # Método 1: Tenta com a URL de export CSV direta usando o nome da aba
+        # Adiciona parâmetros para garantir que pega todos os dados
         try:
             encoded_sheet_name = quote(sheet_name, safe="")
-            sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+            # Tenta com range grande para pegar todas as linhas
+            sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}&range=A1:Z10000"
             sheet_url_used = sheet_url
             # Tenta diferentes encodings para resolver problemas com caracteres especiais
             # IMPORTANTE: header=None inicialmente para não perder a primeira linha
@@ -1009,23 +1014,69 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
                 except:
                     df = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
-        except:
-            # Método 2: Tenta com export direto (pode pegar a primeira aba)
+            
+            # Se o método 1 funcionou mas tem poucas linhas, tenta sem range
+            if df is not None and len(df) < 2000:
+                try:
+                    sheet_url2 = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
+                    try:
+                        df2 = pd.read_csv(sheet_url2, encoding='utf-8', header=None)
+                        if len(df2) > len(df):
+                            df = df2
+                            sheet_url_used = sheet_url2
+                    except:
+                        pass
+                except:
+                    pass
+                    
+        except Exception as e:
+            st.warning(f"⚠️ Erro no método 1: {str(e)}")
+        
+        # Método 2: Tenta com export direto (pode pegar a primeira aba)
+        if df is None or len(df) < 2000:
+            try:
+                sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+                sheet_url_used = sheet_url
+                try:
+                    df_temp = pd.read_csv(sheet_url, encoding='utf-8', header=None)
+                    if df is None or len(df_temp) > len(df):
+                        df = df_temp
+                except:
+                    try:
+                        df_temp = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                        if df is None or len(df_temp) > len(df):
+                            df = df_temp
+                    except:
+                        pass
+            except Exception as e:
+                st.warning(f"⚠️ Erro no método 2: {str(e)}")
+        
+        # Método 3: Tenta com export direto sem gid
+        if df is None or len(df) < 2000:
             try:
                 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
                 sheet_url_used = sheet_url
                 try:
-                    df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
+                    df_temp = pd.read_csv(sheet_url, encoding='utf-8', header=None)
+                    if df is None or len(df_temp) > len(df):
+                        df = df_temp
                 except:
-                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
-            except:
-                # Método 3: Tenta com gid=0 (primeira aba)
-                sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
-                sheet_url_used = sheet_url
-                try:
-                    df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
-                except:
-                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                    try:
+                        df_temp = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+                        if df is None or len(df_temp) > len(df):
+                            df = df_temp
+                    except:
+                        pass
+            except Exception as e:
+                st.warning(f"⚠️ Erro no método 3: {str(e)}")
+        
+        # Verifica se conseguiu carregar dados
+        if df is None:
+            raise Exception("Não foi possível carregar dados de nenhum método")
+        
+        # Avisa se parece que faltam dados
+        if len(df) < 2000:
+            st.warning(f"⚠️ ATENÇÃO: CSV carregado tem apenas {len(df)} linhas. A planilha pode ter mais linhas. Verifique se o Google Sheets está limitando a exportação.")
         
         # DEBUG: Salva o CSV bruto para verificação
         if df is not None and len(df) > 0:
