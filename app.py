@@ -2161,17 +2161,21 @@ def create_choropleth_map(df, df_atores=None):
     if 'longitude' in df_municipios.columns:
         colunas_merge.append('longitude')
 
-    # Começa com os dados da planilha "Municípios e Regiões" que já tem todos os municípios com suas regiões
-    # A planilha é a fonte de verdade para a região de cada município (coluna nome_mesorregiao)
-    df_regions = df_map.copy()
+    # Começa com TODOS os municípios de MG para garantir que todos apareçam no mapa
+    # Depois faz merge com dados da planilha para obter regiões e quantidades
+    df_regions = df_municipios[colunas_merge].copy()
     
-    # Faz merge com dados de municípios apenas para obter coordenadas (latitude/longitude)
-    # Mantém todos os municípios da planilha (que já têm suas regiões definidas)
+    # Adiciona coluna de nome do município se não existir
+    if 'nome' not in df_regions.columns and 'nome' in df_municipios.columns:
+        df_regions['nome'] = df_municipios['nome']
+    
+    # Faz merge com dados da planilha (mantém TODOS os municípios de MG)
+    # A planilha é a fonte de verdade para região e quantidades
     df_regions = df_regions.merge(
-        df_municipios[colunas_merge],
+        df_map,
         on='codigo_ibge',
         how='left',
-        suffixes=('', '_municipios')
+        suffixes=('', '_planilha')
     )
     
     # Preenche nome do município se não existir
