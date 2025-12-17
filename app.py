@@ -2293,10 +2293,14 @@ def create_choropleth_map(df, df_atores=None):
     # Cria coluna count usando as quantidades da planilha
     # A coluna 'count' será calculada dinamicamente baseada nas categorias selecionadas
     # Por padrão, usa qtd_startups se disponível
+    # IMPORTANTE: Garante que todos os municípios tenham count (mesmo que seja 0)
     if coluna_qtd_startups in df_regions.columns:
         df_regions['count'] = pd.to_numeric(df_regions[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
     else:
         df_regions['count'] = 0
+    
+    # Garante que não há valores NaN na coluna count
+    df_regions['count'] = df_regions['count'].fillna(0).astype(int)
     
     # Mantém todos os municípios (mesmo sem região na planilha, já foram preenchidos acima)
     # Remove apenas municípios sem código IBGE válido
