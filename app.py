@@ -2230,22 +2230,31 @@ def create_choropleth_map(df, df_atores=None):
     if 'longitude' in df_municipios.columns:
         colunas_merge.append('longitude')
 
-    # USA APENAS OS DADOS DA PLANILHA "Municípios e Regiões" como fonte de verdade
-    # A planilha já tem todos os municípios com suas regiões corretas
-    df_regions = df_map.copy()
+    # IMPORTANTE: Começa com TODOS os municípios de MG para garantir que todos apareçam
+    # Depois faz merge com dados da planilha para obter regiões e quantidades
+    df_municipios_normalizado = df_municipios.copy()
+    df_municipios_normalizado['codigo_ibge'] = normalize_codigo_ibge(df_municipios_normalizado['codigo_ibge'])
+    df_municipios_normalizado = df_municipios_normalizado[df_municipios_normalizado['codigo_ibge'].notna()]
+    df_municipios_normalizado['codigo_ibge'] = df_municipios_normalizado['codigo_ibge'].astype(str)
+    
+    # Normaliza código IBGE na planilha antes do merge
+    df_map['codigo_ibge'] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
+    df_map = df_map[df_map['codigo_ibge'].notna()]
+    df_map['codigo_ibge'] = df_map['codigo_ibge'].astype(str)
+    
+    # Começa com TODOS os municípios de MG e faz merge LEFT com a planilha
+    # Isso garante que todos os municípios apareçam, mesmo que não estejam na planilha
+    df_regions = df_municipios_normalizado[colunas_merge].copy()
+    
+    # Faz merge LEFT: mantém TODOS os municípios de MG, adiciona dados da planilha quando disponível
+    df_regions = df_regions.merge(
+        df_map,
+        on='codigo_ibge',
+        how='left',
+        suffixes=('', '_planilha')
+    )
     
     # Preenche nome do município se não existir
-    if coluna_municipio not in df_regions.columns:
-        if 'nome' in df_regions.columns:
-            df_regions[coluna_municipio] = df_regions['nome']
-        elif 'nome_municipio' in df_regions.columns:
-            df_regions[coluna_municipio] = df_regions['nome_municipio']
-    else:
-        # Preenche valores faltantes com nome dos dados de municípios
-        if 'nome' in df_regions.columns:
-            df_regions[coluna_municipio] = df_regions[coluna_municipio].fillna(df_regions['nome'])
-    
-    # Preenche nome do município se não existir (vem da planilha ou dos dados de municípios)
     if coluna_municipio not in df_regions.columns:
         if 'nome' in df_regions.columns:
             df_regions[coluna_municipio] = df_regions['nome']
