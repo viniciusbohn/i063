@@ -2751,29 +2751,8 @@ def create_choropleth_map(df, df_atores=None):
                 else:
                     df_agregado = df_startups_para_contar.groupby([coluna_cidade_atores]).size().reset_index(name='qtd_startups_filtrado')
                 
-                # Atualiza df_regions com as novas contagens (apenas para startups)
-                for idx, row in df_regions.iterrows():
-                    regiao_match = str(row['regiao_final']).strip() if pd.notna(row['regiao_final']) else ""
-                    municipio_match = str(row[coluna_municipio]).strip() if pd.notna(row[coluna_municipio]) else ""
-                    
-                    # Busca contagem filtrada
-                    if coluna_regiao_atores:
-                        match = df_agregado[
-                            (df_agregado[coluna_regiao_atores].astype(str).str.strip().str.lower() == regiao_match.lower()) &
-                            (df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower())
-                        ]
-                    else:
-                        match = df_agregado[
-                            df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower()
-                        ]
-                    
-                    if not match.empty and coluna_qtd_startups in df_regions.columns:
-                        # Atualiza apenas a contagem de startups com o valor filtrado
-                        nova_contagem = match.iloc[0]['qtd_startups_filtrado'] if 'qtd_startups_filtrado' in match.columns else 0
-                        df_regions.loc[idx, coluna_qtd_startups] = int(nova_contagem) if pd.notna(nova_contagem) else 0
-                    elif coluna_qtd_startups in df_regions.columns:
-                        # Se não encontrou match, zera a contagem de startups (não há startups desse segmento neste município)
-                        df_regions.loc[idx, coluna_qtd_startups] = 0
+                # NÃO atualiza df_regions - os valores da planilha devem ser preservados
+                # O filtro de segmentos será aplicado apenas na visualização, não nos dados originais
         
         # Aplica filtros aos dados
         df_regions_filtrado = df_regions.copy()
