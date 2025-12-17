@@ -25,25 +25,48 @@ MAP_CONFIG = {
     "scrollZoom": True,
     "modeBarButtonsToRemove": [],
 }
-MAP_STYLE = "carto-darkmatter"  # Estilo escuro que combina com o fundo do Streamlit
+MAP_STYLE = "carto-positron"  # Estilo claro - fundo será customizado via plot_bgcolor
 MAP_BASE_LAYER = None
 
-# Paleta base para regiões (suficiente para 14 regiões)
-REGION_COLOR_PALETTE = (
-    px.colors.qualitative.Safe
-    + px.colors.qualitative.Set3
-    + px.colors.qualitative.Pastel
-    + px.colors.qualitative.Dark2
-)
+# Cores oficiais do Sebrae
+SEBRAE_AZUL = "#0052A5"  # Azul principal Sebrae
+SEBRAE_AZUL_CLARO = "#0066CC"  # Azul claro Sebrae
+SEBRAE_VERDE = "#00A859"  # Verde Sebrae
+SEBRAE_LARANJA = "#FF6B35"  # Laranja Sebrae
+SEBRAE_AMARELO = "#FFC107"  # Amarelo Sebrae
+SEBRAE_CINZA_ESCURO = "#333333"  # Cinza escuro
+SEBRAE_CINZA_CLARO = "#F5F5F5"  # Cinza claro
+SEBRAE_BRANCO = "#FFFFFF"  # Branco
 
-# Cores para categorias de atores
+# Paleta de cores Sebrae para regiões (cores distintas para fácil identificação)
+SEBRAE_COLOR_PALETTE = [
+    SEBRAE_VERDE,          # Verde Sebrae - muito distinto
+    SEBRAE_LARANJA,        # Laranja Sebrae - muito distinto
+    SEBRAE_AMARELO,        # Amarelo Sebrae - muito distinto
+    "#FF1493",             # Rosa/Magenta - muito distinto
+    "#00CED1",             # Turquesa escuro - muito distinto
+    "#FF6347",             # Tomate - distinto
+    "#32CD32",             # Verde Lima - distinto
+    "#FFD700",             # Dourado - distinto
+    "#9370DB",             # Roxo médio - distinto
+    "#20B2AA",             # Verde água - distinto
+    "#FF4500",             # Laranja vermelho - distinto
+    "#00FA9A",             # Verde médio - distinto
+    "#FF69B4",             # Rosa quente - distinto
+    "#1E90FF",             # Azul dodger - distinto
+]
+
+# Paleta base para regiões (usando cores Sebrae)
+REGION_COLOR_PALETTE = SEBRAE_COLOR_PALETTE * 3  # Repete para ter cores suficientes
+
+# Cores para categorias de atores (alinhadas com Sebrae)
 CATEGORIA_COLORS = {
-    "Startup": "#1f77b4",  # Azul
-    "Empresa Âncora": "#ff7f0e",  # Laranja
-    "Fundos e Investidores": "#2ca02c",  # Verde
-    "Hubs, Incubadoras e Parques Tecnológicos": "#d62728",  # Vermelho
-    "Universidades e ICTs": "#9467bd",  # Roxo
-    "Órgãos Públicos e Apoio": "#8c564b",  # Marrom
+    "Startup": SEBRAE_AZUL,  # Azul Sebrae
+    "Empresa Âncora": SEBRAE_LARANJA,  # Laranja Sebrae
+    "Fundos e Investidores": SEBRAE_VERDE,  # Verde Sebrae
+    "Hubs, Incubadoras e Parques Tecnológicos": SEBRAE_AMARELO,  # Amarelo Sebrae
+    "Universidades e ICTs": SEBRAE_AZUL_CLARO,  # Azul claro Sebrae
+    "Órgãos Públicos e Apoio": SEBRAE_CINZA_ESCURO,  # Cinza escuro
 }
 
 
@@ -99,18 +122,17 @@ def normalize_codigo_ibge(series: pd.Series) -> pd.Series:
             return value_str.zfill(7)
     return series.apply(_normalize)
 
-# CSS personalizado
-st.markdown("""
+# CSS personalizado - Identidade Visual Sebrae
+st.markdown(f"""
 <style>
     /* Estiliza botões de cards - aplica a todos os botões secondary nas colunas dos cards */
-    div[data-testid="column"] button[kind="secondary"] {
-        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%) !important;
+    div[data-testid="column"] button[kind="secondary"] {{
+        background: white !important;
         padding: 1.5rem !important;
         border-radius: 15px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(10px) !important;
-        color: white !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
         text-align: center !important;
         transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease !important;
         height: 140px !important;
@@ -125,47 +147,100 @@ st.markdown("""
         white-space: pre-line !important;
         font-size: inherit !important;
         box-sizing: border-box !important;
-    }
+    }}
     
-    div[data-testid="column"] button[kind="secondary"]:hover:not(:disabled) {
+    div[data-testid="column"] button[kind="secondary"]:hover:not(:disabled) {{
         transform: translateY(-5px) !important;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
-    }
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+        background: #f8f9fa !important;
+    }}
     
-    div[data-testid="column"] button[kind="secondary"]:disabled {
-        opacity: 0.4 !important;
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%) !important;
-        cursor: not-allowed !important;
-    }
-    
-    div[data-testid="column"] button[kind="secondary"]:disabled:hover {
+    div[data-testid="column"] button[kind="secondary"]:disabled {{
         opacity: 0.6 !important;
-    }
+        background: #e9ecef !important;
+        cursor: not-allowed !important;
+        color: #6c757d !important;
+    }}
     
-    .metric-card-label {
+    div[data-testid="column"] button[kind="secondary"]:disabled:hover {{
+        opacity: 0.7 !important;
+    }}
+    
+    /* Cards inativos - transparência mas ainda clicáveis */
+    .card-inactive button[kind="secondary"],
+    div.card-inactive button[kind="secondary"],
+    div[data-category] button[kind="secondary"] {{
+        opacity: 0.4 !important;
+        background: rgba(255, 255, 255, 0.5) !important;
+        color: rgba(51, 51, 51, 0.5) !important;
+    }}
+    
+    .card-inactive button[kind="secondary"]:hover,
+    div.card-inactive button[kind="secondary"]:hover,
+    div[data-category] button[kind="secondary"]:hover {{
+        opacity: 0.6 !important;
+        background: rgba(248, 249, 250, 0.7) !important;
+        transform: translateY(-5px) !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+    }}
+    
+    /* JavaScript para aplicar transparência baseado no estado */
+    <script>
+    function applyCardInactiveStyles() {{
+        // Busca todos os containers com data-category
+        const containers = document.querySelectorAll('div[data-category]');
+        containers.forEach(container => {{
+            const category = container.getAttribute('data-category');
+            const isInactive = container.classList.contains('card-inactive');
+            const button = container.querySelector('button[kind="secondary"]');
+            
+            if (button && isInactive) {{
+                button.style.setProperty('opacity', '0.4', 'important');
+                button.style.setProperty('background', 'rgba(255, 255, 255, 0.5)', 'important');
+                button.style.setProperty('color', 'rgba(51, 51, 51, 0.5)', 'important');
+            }}
+        }});
+    }}
+    
+    // Executa quando a página carrega
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', applyCardInactiveStyles);
+    }} else {{
+        applyCardInactiveStyles();
+    }}
+    
+    // Executa após mudanças no DOM
+    const observer = new MutationObserver(applyCardInactiveStyles);
+    observer.observe(document.body, {{ childList: true, subtree: true }});
+    
+    // Executa periodicamente
+    setInterval(applyCardInactiveStyles, 500);
+    </script>
+    
+    .metric-card-label {{
         font-size: 0.9rem;
-        color: rgba(255, 255, 255, 0.9);
+        color: {SEBRAE_CINZA_ESCURO};
         margin-bottom: 0.5rem;
-    }
+    }}
     
-    .metric-card-value {
+    .metric-card-value {{
         font-size: 2.2rem;
         font-weight: bold;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        color: {SEBRAE_AZUL};
         line-height: 1.2;
-    }
+    }}
     
-    .metric-value {
+    .metric-value {{
         font-size: 2.2rem;
         font-weight: bold;
         margin: 0.3rem 0;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        color: {SEBRAE_AZUL};
         line-height: 1.2;
-    }
+    }}
     
-    .metric-label {
+    .metric-label {{
         font-size: 0.85rem;
-        opacity: 0.9;
+        color: {SEBRAE_CINZA_ESCURO};
         text-transform: none;
         letter-spacing: 0.5px;
         line-height: 1.3;
@@ -176,25 +251,737 @@ st.markdown("""
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
-    }
+    }}
     
-    .site-icon {
+    .site-icon {{
         text-align: center;
         width: 40px;
         min-width: 40px;
         max-width: 40px;
-    }
-    .site-icon a {
+    }}
+    .site-icon a {{
         text-decoration: none;
         color: #4A9EFF;
         font-size: 1.2rem;
         display: inline-block;
-    }
-    .site-icon a:hover {
+    }}
+    .site-icon a:hover {{
         color: #6BB6FF;
         transform: scale(1.2);
-    }
+    }}
+    
+    /* Fundo da página - Azul Sebrae */
+    .stApp {{
+        background-color: {SEBRAE_AZUL_CLARO} !important;
+        background: linear-gradient(135deg, {SEBRAE_AZUL} 0%, {SEBRAE_AZUL_CLARO} 100%) !important;
+    }}
+    
+    /* Ajusta cores de texto para contraste no fundo azul */
+    .stApp h1, .stApp h2, .stApp h3 {{
+        color: white !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }}
+    
+    /* Ajusta métricas para contraste */
+    [data-testid="stMetricValue"] {{
+        color: white !important;
+    }}
+    
+    [data-testid="stMetricLabel"] {{
+        color: rgba(255, 255, 255, 0.9) !important;
+    }}
+    
+    /* Ajusta textos gerais */
+    .stMarkdown, .stMarkdown p {{
+        color: rgba(255, 255, 255, 0.95) !important;
+    }}
+    
+    /* Ajusta elementos de informação */
+    .stInfo, .stSuccess, .stWarning, .stError {{
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Tabela - fundo branco */
+    /* Estilos gerais de tabela - mas não para data-table */
+    table:not(#data-table):not(#data-table-2) {{
+        background-color: white !important;
+    }}
+    
+    thead:not(#data-table thead):not(#data-table-2 thead) {{
+        background-color: white !important;
+    }}
+    
+    tbody:not(#data-table tbody):not(#data-table-2 tbody) {{
+        background-color: white !important;
+    }}
+    
+    tbody:not(#data-table tbody):not(#data-table-2 tbody) tr:nth-child(even) {{
+        background-color: #f8f9fa !important;
+    }}
+    
+    /* Tabela de dados - cabeçalho azul escuro com texto branco */
+    #data-table thead th,
+    #data-table-2 thead th,
+    table[id*="data-table"] thead th {{
+        background-color: #003366 !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }}
+    
+    /* Tabela de dados - corpo branco com texto escuro */
+    #data-table tbody td,
+    #data-table-2 tbody td,
+    table[id*="data-table"] tbody td {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Remove zebrado da tabela de dados */
+    #data-table tbody tr:nth-child(even) td,
+    #data-table-2 tbody tr:nth-child(even) td {{
+        background-color: white !important;
+    }}
+    
+    /* Estilos para st.dataframe do Streamlit - seletores mais abrangentes */
+    div[data-testid="stDataFrame"] table thead th,
+    div[data-testid="stDataFrame"] table thead tr th,
+    div[data-testid="stDataFrame"] thead th,
+    div[data-testid="stDataFrame"] thead tr th,
+    div[data-testid="stDataFrame"] table > thead > tr > th,
+    div[data-testid="stDataFrame"] table thead th div,
+    div[data-testid="stDataFrame"] table thead th span,
+    div[data-testid="stDataFrame"] table thead th p,
+    div[data-testid="stDataFrame"] thead th[role="columnheader"],
+    div[data-testid="stDataFrame"] table thead th[role="columnheader"],
+    div[data-testid="stDataFrame"] table thead tr:first-child th,
+    div[data-testid="stDataFrame"] table thead tr:first-child td {{
+        background-color: #003366 !important;
+        background: #003366 !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }}
+    
+    /* Força o thead inteiro */
+    div[data-testid="stDataFrame"] table thead,
+    div[data-testid="stDataFrame"] table thead tr:first-child {{
+        background-color: #003366 !important;
+        background: #003366 !important;
+    }}
+    
+    div[data-testid="stDataFrame"] table tbody td,
+    div[data-testid="stDataFrame"] table tbody tr td,
+    div[data-testid="stDataFrame"] tbody td,
+    div[data-testid="stDataFrame"] tbody tr td,
+    div[data-testid="stDataFrame"] table > tbody > tr > td {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    div[data-testid="stDataFrame"] table tbody tr:nth-child(even) td,
+    div[data-testid="stDataFrame"] table tbody tr:nth-child(even) td div {{
+        background-color: white !important;
+    }}
+    
+    div[data-testid="stDataFrame"] table,
+    div[data-testid="stDataFrame"] table > thead,
+    div[data-testid="stDataFrame"] table > tbody,
+    div[data-testid="stDataFrame"] > div {{
+        background-color: white !important;
+    }}
+    
+    /* Força estilos em todos os elementos dentro do dataframe */
+    div[data-testid="stDataFrame"] {{
+        background-color: white !important;
+    }}
+    
+    tbody:not(#data-table tbody):not(#data-table-2 tbody) tr:hover {{
+        background-color: #e9ecef !important;
+    }}
+    
+    /* Hover na tabela de dados - mantém branco */
+    #data-table tbody tr:hover td,
+    #data-table-2 tbody tr:hover td {{
+        background-color: #f8f9fa !important;
+    }}
+    
+    th, td {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Dropdown boxes - fundo branco sem bordas brancas */
+    div[data-baseweb="select"] {{
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+    
+    div[data-baseweb="select"] > div {{
+        background-color: white !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-radius: 4px !important;
+    }}
+    
+    div[data-baseweb="select"] input {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+        border: none !important;
+    }}
+    
+    div[data-baseweb="select"] > div > div {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+        border: none !important;
+    }}
+    
+    /* Multiselect - fundo branco sem bordas brancas */
+    div[data-baseweb="select"][aria-multiselectable="true"] {{
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }}
+    
+    div[data-baseweb="select"][aria-multiselectable="true"] > div {{
+        background-color: white !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-radius: 4px !important;
+    }}
+    
+    div[data-baseweb="select"][aria-multiselectable="true"] input {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+        border: none !important;
+    }}
+    
+    /* Tags selecionadas no multiselect - Azul claro/transparente baseado em #003366 */
+    div[data-baseweb="tag"] {{
+        background-color: rgba(0, 51, 102, 0.2) !important; /* Azul #003366 com 20% de opacidade */
+        color: {SEBRAE_CINZA_ESCURO} !important;
+        border: 1px solid rgba(0, 51, 102, 0.4) !important;
+    }}
+    
+    /* Texto dentro das tags - preto/cinza escuro para legibilidade */
+    div[data-baseweb="select"] div[data-baseweb="tag"],
+    div[data-baseweb="select"] div[data-baseweb="tag"] *,
+    div[data-baseweb="select"] div[data-baseweb="tag"] span,
+    div[data-baseweb="select"] div[data-baseweb="tag"] div,
+    div[data-baseweb="select"] div[data-baseweb="tag"] p,
+    div[data-baseweb="select"] div[data-baseweb="tag"] label {{
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Botão de remover - mantém visível */
+    div[data-baseweb="tag"] button {{
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    div[data-baseweb="tag"] button svg,
+    div[data-baseweb="tag"] button svg *,
+    div[data-baseweb="tag"] svg path {{
+        fill: {SEBRAE_CINZA_ESCURO} !important;
+        stroke: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Tags no multiselect - garante que todas sejam azul claro/transparente */
+    div[data-baseweb="select"] div[data-baseweb="tag"] {{
+        background-color: rgba(0, 51, 102, 0.2) !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+        border: 1px solid rgba(0, 51, 102, 0.4) !important;
+    }}
+    
+    /* Remove qualquer cor vermelha das tags e força azul claro */
+    span[data-baseweb="tag"],
+    div[data-baseweb="tag"] span,
+    div[data-baseweb="select"] span[data-baseweb="tag"],
+    div[role="listbox"] div[data-baseweb="tag"] {{
+        background-color: rgba(0, 51, 102, 0.2) !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Override qualquer estilo inline vermelho ou outras cores - força azul claro */
+    [style*="background-color: rgb(239, 68, 68)"],
+    [style*="background-color:#ef4444"],
+    [style*="background-color: #ef4444"],
+    [style*="background-color:rgb(239, 68, 68)"],
+    [style*="background-color: rgb(0, 82, 165)"],
+    [style*="background-color:#0052A5"],
+    [style*="background-color: #0052A5"],
+    [style*="background-color: rgb(0, 51, 102)"],
+    [style*="background-color:#003366"],
+    [style*="background-color: #003366"] {{
+        background-color: rgba(0, 51, 102, 0.2) !important;
+    }}
+    
+    /* Tags dentro do multiselect - força azul claro */
+    div[data-baseweb="select"][aria-multiselectable="true"] div[data-baseweb="tag"],
+    div[data-baseweb="select"][aria-multiselectable="true"] span[data-baseweb="tag"] {{
+        background-color: rgba(0, 51, 102, 0.2) !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Ícone X dentro das tags - preto para visibilidade */
+    div[data-baseweb="tag"] svg,
+    div[data-baseweb="tag"] svg *,
+    div[data-baseweb="tag"] path,
+    div[data-baseweb="tag"] button svg,
+    div[data-baseweb="tag"] button svg * {{
+        fill: {SEBRAE_CINZA_ESCURO} !important;
+        stroke: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Botão de remover dentro das tags - preto */
+    div[data-baseweb="tag"] button {{
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    div[data-baseweb="tag"] button * {{
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Placeholder e texto dos selects - mas não dentro das tags */
+    div[data-baseweb="select"] span:not(div[data-baseweb="tag"] span) {{
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    /* Força branco em TODOS os elementos de texto dentro das tags - máxima especificidade */
+    div[data-baseweb="select"] div[data-baseweb="tag"] span[data-baseweb="tag-text"],
+    div[data-baseweb="select"] div[data-baseweb="tag"] > span:first-child,
+    div[data-baseweb="select"] div[data-baseweb="tag"] > div:first-child,
+    div[data-baseweb="select"] div[data-baseweb="tag"] > label,
+    div[data-baseweb="select"] div[data-baseweb="tag"] > span,
+    div[data-baseweb="select"] div[data-baseweb="tag"] > div {{
+        color: white !important;
+    }}
+    
+    /* Override absoluto - força branco em qualquer texto dentro de tag */
+    div[data-baseweb="tag"] {{
+        color: white !important;
+    }}
+    
+    div[data-baseweb="tag"]::before,
+    div[data-baseweb="tag"]::after {{
+        color: white !important;
+    }}
+    
+    /* Dropdown aberto */
+    ul[role="listbox"] {{
+        background-color: white !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    }}
+    
+    li[role="option"] {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    li[role="option"]:hover {{
+        background-color: #f8f9fa !important;
+    }}
+    
+    /* Remove espaços e bordas extras ao redor dos selects */
+    div[data-testid="stSelectbox"] > div,
+    div[data-testid="stMultiSelect"] > div {{
+        background-color: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }}
+    
+    /* Remove bordas brancas dos containers */
+    .stSelectbox > div,
+    .stMultiSelect > div {{
+        background-color: transparent !important;
+        border: none !important;
+    }}
+    
+    /* Campo de pesquisa - fundo branco */
+    div[data-testid="stTextInput"] input {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    div[data-testid="stTextInput"] input::placeholder {{
+        color: #999 !important;
+    }}
+    
+    /* Tabela de dados - cabeçalho azul escuro e corpo branco */
+    #data-table thead th,
+    #data-table-2 thead th,
+    table[id*="data-table"] thead th {{
+        background-color: #003366 !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }}
+    
+    #data-table tbody td,
+    #data-table-2 tbody td,
+    table[id*="data-table"] tbody td {{
+        background-color: white !important;
+        color: {SEBRAE_CINZA_ESCURO} !important;
+    }}
+    
+    #data-table,
+    #data-table-2,
+    table[id*="data-table"] {{
+        background-color: white !important;
+    }}
 </style>
+<script>
+    // Aplica transparência aos cards inativos
+    function applyCardInactiveStyles() {{
+        // Busca todos os containers com data-category
+        const containers = document.querySelectorAll('div[data-category]');
+        containers.forEach(container => {{
+            const isInactive = container.classList.contains('card-inactive');
+            const category = container.getAttribute('data-category');
+            
+            // Busca o botão dentro do container ou no próximo elemento irmão
+            let button = container.querySelector('button[kind="secondary"]');
+            
+            // Se não encontrou dentro, busca no próximo elemento irmão (Streamlit pode renderizar assim)
+            if (!button) {{
+                const nextSibling = container.nextElementSibling;
+                if (nextSibling) {{
+                    button = nextSibling.querySelector('button[kind="secondary"]');
+                }}
+            }}
+            
+            // Se ainda não encontrou, busca em todos os botões e verifica pela key
+            if (!button) {{
+                const allButtons = document.querySelectorAll('button[kind="secondary"]');
+                allButtons.forEach(btn => {{
+                    // Verifica se o botão está relacionado a esta categoria pela estrutura
+                    const parent = btn.closest('div[data-testid="column"]');
+                    if (parent && container.parentElement === parent.parentElement) {{
+                        button = btn;
+                    }}
+                }});
+            }}
+            
+            if (button && isInactive) {{
+                button.style.setProperty('opacity', '0.4', 'important');
+                button.style.setProperty('background', 'rgba(255, 255, 255, 0.5)', 'important');
+                button.style.setProperty('color', 'rgba(51, 51, 51, 0.5)', 'important');
+            }} else if (button && !isInactive) {{
+                // Remove estilos de inativo se estiver ativo
+                button.style.removeProperty('opacity');
+                button.style.removeProperty('background');
+                button.style.removeProperty('color');
+            }}
+        }});
+        
+        // Busca todos os botões e verifica pelo texto e pela lista de categorias inativas
+        const inactiveCategories = new Set();
+        containers.forEach(container => {{
+            if (container.classList.contains('card-inactive')) {{
+                const category = container.getAttribute('data-category');
+                if (category) inactiveCategories.add(category);
+            }}
+        }});
+        
+        // Aplica estilos baseado no texto do botão e nas categorias inativas
+        const allButtons = document.querySelectorAll('div[data-testid="column"] button[kind="secondary"]');
+        allButtons.forEach(button => {{
+            const buttonText = (button.textContent || button.innerText || '').trim();
+            let shouldBeInactive = false;
+            
+            // Mapeia texto do botão para categoria
+            if ((buttonText.includes('Startups') || buttonText.includes('Startup')) && inactiveCategories.has('Startup')) {{
+                shouldBeInactive = true;
+            }} else if ((buttonText.includes('Empresa Âncora') || buttonText.includes('Grandes Empresas')) && inactiveCategories.has('Empresa Âncora')) {{
+                shouldBeInactive = true;
+            }} else if ((buttonText.includes('Fundos e Investidores') || buttonText.includes('Fundos')) && inactiveCategories.has('Fundos e Investidores')) {{
+                shouldBeInactive = true;
+            }} else if ((buttonText.includes('Universidades') || buttonText.includes('ICTs')) && inactiveCategories.has('Universidades e ICTs')) {{
+                shouldBeInactive = true;
+            }} else if ((buttonText.includes('Órgãos Públicos') || buttonText.includes('Órgãos')) && inactiveCategories.has('Órgãos Públicos e Apoio')) {{
+                shouldBeInactive = true;
+            }} else if ((buttonText.includes('Hubs') || buttonText.includes('Incubadoras')) && inactiveCategories.has('Hubs, Incubadoras e Parques Tecnológicos')) {{
+                shouldBeInactive = true;
+            }}
+            
+            // Verifica também pelo atributo data-category-inactive
+            const hasInactiveAttr = button.getAttribute('data-category-inactive') === 'true';
+            if (hasInactiveAttr) shouldBeInactive = true;
+            
+            if (shouldBeInactive) {{
+                button.style.setProperty('opacity', '0.4', 'important');
+                button.style.setProperty('background', 'rgba(255, 255, 255, 0.5)', 'important');
+                button.style.setProperty('color', 'rgba(51, 51, 51, 0.5)', 'important');
+            }} else if (!hasInactiveAttr) {{
+                // Remove estilos se não estiver inativo
+                button.style.removeProperty('opacity');
+                button.style.removeProperty('background');
+                button.style.removeProperty('color');
+            }}
+        }});
+    }}
+    
+    // Força fundo azul claro e texto preto nas tags do multiselect
+    function styleTags() {{
+        const tags = document.querySelectorAll('div[data-baseweb="tag"]');
+        tags.forEach(tag => {{
+            // Força fundo azul claro/transparente
+            tag.style.setProperty('background-color', 'rgba(0, 51, 102, 0.2)', 'important');
+            tag.style.backgroundColor = 'rgba(0, 51, 102, 0.2)';
+            
+            // Força texto preto/cinza escuro
+            tag.style.setProperty('color', '#333333', 'important');
+            tag.style.color = '#333333';
+            
+            // Força cor preta em todos os elementos filhos
+            const allElements = tag.querySelectorAll('*');
+            allElements.forEach(el => {{
+                el.style.setProperty('color', '#333333', 'important');
+                el.style.color = '#333333';
+            }});
+            
+            // Força cor preta em spans e divs específicos
+            const spans = tag.querySelectorAll('span');
+            spans.forEach(span => {{
+                span.style.setProperty('color', '#333333', 'important');
+                span.style.color = '#333333';
+            }});
+            
+            const divs = tag.querySelectorAll('div');
+            divs.forEach(div => {{
+                div.style.setProperty('color', '#333333', 'important');
+                div.style.color = '#333333';
+            }});
+            
+            // Ícones SVG em preto
+            const svgs = tag.querySelectorAll('svg, svg *');
+            svgs.forEach(svg => {{
+                svg.style.setProperty('fill', '#333333', 'important');
+                svg.style.setProperty('stroke', '#333333', 'important');
+            }});
+        }});
+    }}
+    
+    // Executa imediatamente
+    applyCardInactiveStyles();
+    styleTags();
+    
+    // Executa quando a página carrega
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', function() {{
+            applyCardInactiveStyles();
+            styleTags();
+        }});
+    }} else {{
+        applyCardInactiveStyles();
+        styleTags();
+    }}
+    
+    // Executa após mudanças no DOM
+    const observer = new MutationObserver(function(mutations) {{
+        mutations.forEach(function(mutation) {{
+            if (mutation.addedNodes.length) {{
+                applyCardInactiveStyles();
+                styleTags();
+            }}
+        }});
+        applyCardInactiveStyles();
+        styleTags();
+    }});
+    observer.observe(document.body, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] }});
+    
+    // Executa periodicamente
+    setInterval(function() {{
+        applyCardInactiveStyles();
+        styleTags();
+    }}, 500);
+    
+    window.addEventListener('load', function() {{
+        applyCardInactiveStyles();
+        styleTags();
+    }});
+    document.addEventListener('DOMContentLoaded', function() {{
+        applyCardInactiveStyles();
+        styleTags();
+        styleDataTable();
+    }});
+    
+    // Função para estilizar tabelas de dados
+    function styleDataTable() {{
+        // Estiliza st.dataframe do Streamlit - busca todas as tabelas
+        const allTables = document.querySelectorAll('table');
+        allTables.forEach(table => {{
+            // Verifica se é uma tabela de dados (não é a tabela de categorias)
+            const isDataTable = table.closest('div[data-testid="stDataFrame"]') || 
+                               table.id === 'data-table' || 
+                               table.id === 'data-table-2' ||
+                               (table.querySelector('thead') && table.querySelector('tbody') && 
+                                !table.closest('.category-legend-item'));
+            
+            if (!isDataTable) return;
+            
+            // Remove todos os estilos inline que possam estar interferindo
+            table.style.removeProperty('background-color');
+            table.style.removeProperty('background');
+            
+            // Cabeçalho - azul escuro com texto branco
+            // Busca todos os possíveis elementos de cabeçalho
+            const headers = table.querySelectorAll('thead th, thead tr th, thead > tr > th, thead > tr > td, thead th[role="columnheader"]');
+            headers.forEach(th => {{
+                // Remove TODOS os estilos inline relacionados a background e color
+                // Primeiro, limpa o atributo style completamente e reconstrói
+                let currentStyle = th.getAttribute('style') || '';
+                // Remove propriedades de background e color do style atual
+                currentStyle = currentStyle
+                    .replace(/background[^;]*;?/gi, '')
+                    .replace(/background-color[^;]*;?/gi, '')
+                    .replace(/background-image[^;]*;?/gi, '')
+                    .replace(/color[^;]*;?/gi, '');
+                
+                // Reconstrói o style apenas com as propriedades que queremos manter (exceto background e color)
+                const newStyle = currentStyle.trim() + '; background-color: #003366 !important; color: white !important; font-weight: 600 !important;';
+                th.setAttribute('style', newStyle);
+                
+                // Também aplica via setProperty para garantir
+                th.style.setProperty('background-color', '#003366', 'important');
+                th.style.setProperty('color', 'white', 'important');
+                th.style.setProperty('font-weight', '600', 'important');
+                
+                // Força também nos elementos filhos
+                const children = th.querySelectorAll('*');
+                children.forEach(child => {{
+                    if (child.tagName !== 'SVG' && child.tagName !== 'PATH') {{
+                        child.style.setProperty('color', 'white', 'important');
+                        let childStyle = child.getAttribute('style') || '';
+                        childStyle = childStyle.replace(/color[^;]*;?/gi, '');
+                        child.setAttribute('style', childStyle.trim() + '; color: white !important;');
+                    }}
+                }});
+                // Força também em divs e spans dentro do th
+                const divs = th.querySelectorAll('div, span, p');
+                divs.forEach(el => {{
+                    el.style.setProperty('color', 'white', 'important');
+                    let elStyle = el.getAttribute('style') || '';
+                    elStyle = elStyle.replace(/color[^;]*;?/gi, '');
+                    el.setAttribute('style', elStyle.trim() + '; color: white !important;');
+                }});
+            }});
+            
+            // Força fundo azul no thead e na primeira linha
+            const thead = table.querySelector('thead');
+            if (thead) {{
+                let theadStyle = thead.getAttribute('style') || '';
+                theadStyle = theadStyle.replace(/background[^;]*;?/gi, '').replace(/background-color[^;]*;?/gi, '');
+                thead.setAttribute('style', theadStyle.trim() + '; background-color: #003366 !important;');
+                thead.style.setProperty('background-color', '#003366', 'important');
+            }}
+            
+            // Força fundo azul na primeira linha do thead
+            const firstRow = table.querySelector('thead tr:first-child');
+            if (firstRow) {{
+                let rowStyle = firstRow.getAttribute('style') || '';
+                rowStyle = rowStyle.replace(/background[^;]*;?/gi, '').replace(/background-color[^;]*;?/gi, '');
+                firstRow.setAttribute('style', rowStyle.trim() + '; background-color: #003366 !important;');
+                firstRow.style.setProperty('background-color', '#003366', 'important');
+            }}
+            
+            // Corpo - fundo branco com texto escuro
+            const cells = table.querySelectorAll('tbody td, tbody tr td, tbody > tr > td');
+            cells.forEach(td => {{
+                // Verifica se a célula tem cor especial (categoria/região) - se tiver, mantém
+                const inlineStyle = td.getAttribute('style') || '';
+                const computedStyle = window.getComputedStyle(td);
+                const bgColor = computedStyle.backgroundColor;
+                
+                // Verifica se tem cor especial (não branco, não transparente)
+                const hasSpecialBg = bgColor && 
+                                    bgColor !== 'rgba(0, 0, 0, 0)' && 
+                                    bgColor !== 'transparent' &&
+                                    bgColor !== 'rgb(255, 255, 255)' &&
+                                    bgColor !== 'rgba(255, 255, 255, 1)' &&
+                                    !bgColor.includes('rgba(0, 0, 0, 0)') &&
+                                    (inlineStyle.includes('background-color') && 
+                                     !inlineStyle.includes('background-color: white') &&
+                                     !inlineStyle.includes('background-color:white'));
+                
+                // Se não tem cor especial, remove estilos inline e aplica branco
+                if (!hasSpecialBg) {{
+                    td.style.removeProperty('background');
+                    td.style.removeProperty('background-color');
+                    td.style.setProperty('background-color', 'white', 'important');
+                }}
+                
+                // Força texto escuro
+                td.style.removeProperty('color');
+                td.style.setProperty('color', '#333333', 'important');
+                
+                // Força texto escuro nos elementos filhos (exceto links)
+                const children = td.querySelectorAll('span, div, p');
+                children.forEach(child => {{
+                    if (!child.closest('a')) {{
+                        child.style.setProperty('color', '#333333', 'important');
+                    }}
+                }});
+            }});
+            
+            // Remove zebrado - força branco nas linhas pares
+            const evenRows = table.querySelectorAll('tbody tr:nth-child(even) td');
+            evenRows.forEach(td => {{
+                const inlineStyle = td.getAttribute('style') || '';
+                const computedStyle = window.getComputedStyle(td);
+                const bgColor = computedStyle.backgroundColor;
+                
+                const hasSpecialBg = bgColor && 
+                                    bgColor !== 'rgba(0, 0, 0, 0)' && 
+                                    bgColor !== 'transparent' &&
+                                    bgColor !== 'rgb(255, 255, 255)' &&
+                                    bgColor !== 'rgba(255, 255, 255, 1)' &&
+                                    !bgColor.includes('rgba(0, 0, 0, 0)') &&
+                                    (inlineStyle.includes('background-color') && 
+                                     !inlineStyle.includes('background-color: white') &&
+                                     !inlineStyle.includes('background-color:white'));
+                
+                if (!hasSpecialBg) {{
+                    td.style.removeProperty('background');
+                    td.style.removeProperty('background-color');
+                    td.style.setProperty('background-color', 'white', 'important');
+                }}
+            }});
+            
+            // Força fundo branco na tabela e tbody
+            table.style.setProperty('background-color', 'white', 'important');
+            const tbody = table.querySelector('tbody');
+            if (tbody) {{
+                tbody.style.setProperty('background-color', 'white', 'important');
+            }}
+            
+            // Força fundo branco no container do dataframe
+            const dfContainer = table.closest('div[data-testid="stDataFrame"]');
+            if (dfContainer) {{
+                dfContainer.style.setProperty('background-color', 'white', 'important');
+            }}
+        }});
+    }}
+    
+    // Executa periodicamente para garantir que os estilos sejam aplicados (mais frequente)
+    setInterval(styleDataTable, 200);
+    
+    // Executa imediatamente várias vezes para garantir aplicação
+    setTimeout(styleDataTable, 100);
+    setTimeout(styleDataTable, 300);
+    setTimeout(styleDataTable, 500);
+    setTimeout(styleDataTable, 1000);
+    
+    // Observa mudanças no DOM com configuração mais agressiva
+    const tableObserver = new MutationObserver(function(mutations) {{
+        styleDataTable();
+    }});
+    tableObserver.observe(document.body, {{ 
+        childList: true, 
+        subtree: true, 
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    }});
+</script>
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=300)  # Cache por 5 minutos para permitir atualizações
@@ -508,13 +1295,20 @@ def create_sector_analysis(df):
             # Top setores (remove NaN)
             sector_counts = df['sector'].dropna().value_counts().head(10)
             
+            # Cores Sebrae para o gráfico
+            colors_sebrae = [SEBRAE_AZUL, SEBRAE_AZUL_CLARO, SEBRAE_VERDE, SEBRAE_LARANJA, SEBRAE_AMARELO]
             fig = px.bar(
                 x=sector_counts.values,
                 y=sector_counts.index,
                 orientation='h',
                 title="Top 10 Setores",
                 color=sector_counts.values,
-                color_continuous_scale='Blues'
+                color_continuous_scale=[[0, SEBRAE_AZUL_CLARO], [1, SEBRAE_AZUL]]
+            )
+            fig.update_layout(
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(color=SEBRAE_CINZA_ESCURO)
             )
             fig.update_layout(yaxis={'categoryorder':'total ascending'})
             st.plotly_chart(fig, use_container_width=True)
@@ -526,9 +1320,15 @@ def create_sector_analysis(df):
             fig = px.pie(
                 values=sector_counts_all.values,
                 names=sector_counts_all.index,
-                title="Distribuição por Setores"
+                title="Distribuição por Setores",
+                color_discrete_sequence=SEBRAE_COLOR_PALETTE
             )
             fig.update_traces(textposition='inside', textinfo='percent+label')
+            fig.update_layout(
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(color=SEBRAE_CINZA_ESCURO)
+            )
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Coluna 'sector' não encontrada nos dados")
@@ -556,9 +1356,17 @@ def create_temporal_analysis(df):
                 x=yearly_counts.index,
                 y=yearly_counts.values,
                 title="Startups Fundadas por Ano",
-                markers=True
+                markers=True,
+                color_discrete_sequence=[SEBRAE_AZUL]
             )
-            fig.update_layout(xaxis_title="Ano", yaxis_title="Número de Startups")
+            fig.update_layout(
+                xaxis_title="Ano", 
+                yaxis_title="Número de Startups",
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(color=SEBRAE_CINZA_ESCURO)
+            )
+            fig.update_traces(line=dict(width=3), marker=dict(size=8, color=SEBRAE_AZUL))
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
@@ -570,9 +1378,17 @@ def create_temporal_analysis(df):
                 x=cumulative.index,
                 y=cumulative.values,
                 title="Acumulado de Startups por Ano",
-                markers=True
+                markers=True,
+                color_discrete_sequence=[SEBRAE_VERDE]
             )
-            fig.update_layout(xaxis_title="Ano", yaxis_title="Total Acumulado")
+            fig.update_layout(
+                xaxis_title="Ano", 
+                yaxis_title="Total Acumulado",
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                font=dict(color=SEBRAE_CINZA_ESCURO)
+            )
+            fig.update_traces(line=dict(width=3), marker=dict(size=8, color=SEBRAE_VERDE))
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Coluna 'foundationYear' não encontrada nos dados")
@@ -743,15 +1559,15 @@ def create_interactive_map(df):
         )
 
         fig.update_layout(
-            mapbox_style="carto-darkmatter",  # Estilo escuro que combina com o fundo do Streamlit
+            mapbox_style="carto-positron",  # Estilo claro - fundo será customizado via plot_bgcolor
             mapbox=dict(
                 center=MAP_CENTER,
                 zoom=MAP_ZOOM,
                 layers=[]
             ),
             margin=dict(l=0, r=0, t=30, b=0),
-            plot_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
-            paper_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
+            plot_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
+            paper_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
             legend=dict(
                 orientation="v",
                 yanchor="top",
@@ -818,11 +1634,110 @@ def render_region_legend(regioes, base_colors, title=""):
                     margin-right:10px;
                     box-shadow:0 0 4px rgba(0,0,0,0.15);
                 "></span>
-                <span style="color:#e2e8f0; font-size:0.95rem;">{regiao}</span>
+                <span style="color:{SEBRAE_CINZA_ESCURO}; font-size:0.95rem;">{regiao}</span>
             </div>
             """
         )
     st.markdown("".join(legend_items), unsafe_allow_html=True)
+
+
+def render_category_legend(categorias_data, title=""):
+    """
+    Renderiza legenda personalizada para as categorias similar à legenda de regiões do mapa.
+    categorias_data: dict com {category_name: {"color": cor, "total": valor, "display_name": nome_exibicao}}
+    """
+    if not categorias_data:
+        return
+    
+    # Mapeamento de nomes de exibição para nomes de categoria
+    card_to_category = {
+        "Startups": "Startup",
+        "Grandes Empresas Âncoras": "Empresa Âncora",
+        "Fundos e Investidores": "Fundos e Investidores",
+        "Universidades e ICTs": "Universidades e ICTs",
+        "Hubs, Incubadoras e Parques Tecnológicos": "Hubs, Incubadoras e Parques Tecnológicos",
+        "Órgãos Públicos e Apoio": "Órgãos Públicos e Apoio"
+    }
+    
+    # Cria a tabela usando Streamlit columns para cada linha
+    for display_name, category_name in card_to_category.items():
+        if category_name not in categorias_data:
+            continue
+        
+        data = categorias_data[category_name]
+        total = data.get("total", 0)
+        is_active = st.session_state.categorias_ativas.get(category_name, True)
+        
+        # Opacidade baseada no estado ativo/inativo
+        opacity = 0.4 if not is_active else 1.0
+        # Texto branco
+        text_color = f"rgba(255, 255, 255, {opacity})"
+        
+        checkbox_key = f"legend_check_{category_name}"
+        
+        # Cria uma linha da tabela usando columns
+        col_check, col_name, col_total = st.columns([0.08, 0.72, 0.2])
+        
+        with col_check:
+            # Checkbox centralizado verticalmente
+            checkbox_value = st.checkbox(
+                "",
+                value=is_active,
+                key=checkbox_key,
+                label_visibility="collapsed"
+            )
+            
+            if checkbox_value != is_active:
+                # Estado mudou, atualiza
+                st.session_state.categorias_ativas[category_name] = checkbox_value
+                categorias_disponiveis = list(card_to_category.values())
+                categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
+                                          if ativa and cat in categorias_disponiveis]
+                st.session_state.filtro_categoria = categorias_ativas_list
+                st.rerun()
+        
+        with col_name:
+            # Nome da categoria
+            st.markdown(
+                f'<div style="color:{text_color}; font-size:0.95rem; opacity:{opacity}; line-height: 1.5;">{display_name}</div>',
+                unsafe_allow_html=True
+            )
+        
+        with col_total:
+            # Total alinhado à direita
+            st.markdown(
+                f'<div style="color:{text_color}; font-size:0.95rem; font-weight:600; opacity:{opacity}; text-align: right; line-height: 1.5;">{total:,}</div>',
+                unsafe_allow_html=True
+            )
+        
+    
+    # CSS para melhorar o alinhamento vertical e reduzir espaçamento
+    st.markdown(
+        """
+        <style>
+        /* Ajusta checkboxes para alinhar com o texto */
+        div[data-testid*="stCheckbox"] {
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            height: auto !important;
+        }
+        
+        /* Remove espaçamento extra das colunas */
+        div[data-testid="column"] {
+            padding: 0 4px !important;
+        }
+        
+        /* Ajusta espaçamento vertical das linhas */
+        div[data-testid="column"] > div {
+            margin: 0 !important;
+            padding: 4px 0 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 def create_choropleth_map(df, df_atores=None):
@@ -842,6 +1757,7 @@ def create_choropleth_map(df, df_atores=None):
     coluna_qtd_fundos_e_investidores = "qtd_fundos_e_investidores"
     coluna_qtd_universidades_icts = "qtd_universidades_icts"
     coluna_qtd_orgaos = "qtd_orgaos"
+    coluna_qtd_hubs_incubadoras_parquestecnologicos = "qtd_hubs_incubadoras_parquestecnologicos"
     coluna_codigo_ibge = "codigo_ibge"
 
     if coluna_regiao not in df.columns:
@@ -876,6 +1792,8 @@ def create_choropleth_map(df, df_atores=None):
         colunas_necessarias.append(coluna_qtd_universidades_icts)
     if coluna_qtd_orgaos in df.columns:
         colunas_necessarias.append(coluna_qtd_orgaos)
+    if coluna_qtd_hubs_incubadoras_parquestecnologicos in df.columns:
+        colunas_necessarias.append(coluna_qtd_hubs_incubadoras_parquestecnologicos)
     
     df_map = df[colunas_necessarias].copy()
     df_map = df_map.dropna(subset=[coluna_municipio, coluna_regiao])
@@ -892,6 +1810,8 @@ def create_choropleth_map(df, df_atores=None):
         df_map[coluna_qtd_universidades_icts] = pd.to_numeric(df_map[coluna_qtd_universidades_icts], errors='coerce').fillna(0).astype(int)
     if coluna_qtd_orgaos in df_map.columns:
         df_map[coluna_qtd_orgaos] = pd.to_numeric(df_map[coluna_qtd_orgaos], errors='coerce').fillna(0).astype(int)
+    if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_map.columns:
+        df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos] = pd.to_numeric(df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0).astype(int)
 
     # Base de municípios com latitude/longitude (para coordenadas se necessário)
     df_municipios = load_municipios_com_coordenadas()
@@ -929,7 +1849,23 @@ def create_choropleth_map(df, df_atores=None):
     # Define cores para TODAS as regiões ANTES de aplicar filtros
     # Isso garante que cada região mantenha sua cor original
     regioes_todas = sorted(df_regions['regiao_final'].unique())
-    base_colors = {regiao: REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)] for i, regiao in enumerate(regioes_todas)}
+    base_colors = {}
+    
+    # Cores especiais para regiões específicas
+    TRIANGULO_COLOR = "#003366"  # Azul escuro para Triângulo e Alto Paranaíba
+    RIO_DOCE_COLOR = "#8B0000"  # Vermelho escuro para Rio Doce e Vale do Aço
+    
+    for i, regiao in enumerate(regioes_todas):
+        regiao_lower = str(regiao).lower().strip()
+        
+        # Verifica se é Triângulo e Alto Paranaíba
+        if 'triângulo' in regiao_lower or 'triangulo' in regiao_lower or 'paranaíba' in regiao_lower or 'paranaiba' in regiao_lower:
+            base_colors[regiao] = TRIANGULO_COLOR
+        # Verifica se é Rio Doce e Vale do Aço
+        elif 'rio doce' in regiao_lower or 'vale do aço' in regiao_lower or 'vale do aco' in regiao_lower:
+            base_colors[regiao] = RIO_DOCE_COLOR
+        else:
+            base_colors[regiao] = REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)]
 
     # Inicializa variáveis de filtro
     categorias_selecionadas = []
@@ -1003,9 +1939,11 @@ def create_choropleth_map(df, df_atores=None):
                 categorias_base.append("Universidades e ICTs")
             if coluna_qtd_orgaos in df.columns:
                 categorias_base.append("Órgãos Públicos e Apoio")
+            if coluna_qtd_hubs_incubadoras_parquestecnologicos in df.columns:
+                categorias_base.append("Hubs, Incubadoras e Parques Tecnológicos")
             categorias_disponiveis = categorias_base
         
-        # Inicializa estado das categorias ativas (todas ativas por padrão, exceto Hubs que não tem dados)
+        # Inicializa estado das categorias ativas (todas ativas por padrão)
         if "categorias_ativas" not in st.session_state:
             st.session_state.categorias_ativas = {
                 "Startup": True,
@@ -1013,7 +1951,7 @@ def create_choropleth_map(df, df_atores=None):
                 "Fundos e Investidores": True,
                 "Universidades e ICTs": True,
                 "Órgãos Públicos e Apoio": True,
-                "Hubs, Incubadoras e Parques Tecnológicos": False  # Sempre desativado (sem dados)
+                "Hubs, Incubadoras e Parques Tecnológicos": True  # Agora tem dados
             }
         
         # Mapeia nomes dos cards para nomes das categorias no filtro
@@ -1026,24 +1964,51 @@ def create_choropleth_map(df, df_atores=None):
             "Hubs, Incubadoras e Parques Tecnológicos": "Hubs, Incubadoras e Parques Tecnológicos"
         }
         
-        # Cabeçalho com título e botão de reset
-        col_title, col_reset = st.columns([3, 1])
-        with col_title:
-            st.subheader("🔍 Filtros")
-        with col_reset:
-            st.write("")  # Espaçamento
-            if st.button("🔄 Resetar", key="btn_reset_filtros", use_container_width=True):
-                # Define explicitamente os valores padrão no session_state
-                st.session_state.filtro_regiao = "Todas"
-                st.session_state.filtro_municipio = "Todos"
-                # Reseta todas as categorias para ativas (exceto Hubs)
-                for cat in st.session_state.categorias_ativas:
-                    if cat != "Hubs, Incubadoras e Parques Tecnológicos":
-                        st.session_state.categorias_ativas[cat] = True
-                categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
-                                          if ativa and cat in categorias_disponiveis]
-                st.session_state.filtro_categoria = categorias_ativas_list
-                st.rerun()
+        # Cabeçalho com logo Sebrae + Beta-i
+        # Exibe logo Sebrae + Beta-i reduzido em 30% e próximo ao mapa
+        st.markdown("""
+        <style>
+            .logo-container {
+                margin-top: -80px !important;
+                margin-bottom: -20px !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            .logo-container img {
+                margin-bottom: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            div[data-testid="stImage"] {
+                margin-top: -80px !important;
+                margin-bottom: -20px !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            /* Ajusta espaçamento mínimo entre filtros */
+            div[data-testid="stSelectbox"],
+            div[data-testid="stMultiSelect"] {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+            /* Espaçamento mínimo entre filtros adjacentes */
+            div[data-testid="stSelectbox"] + div[data-testid="stSelectbox"],
+            div[data-testid="stSelectbox"] + div[data-testid="stMultiSelect"],
+            div[data-testid="stMultiSelect"] + div[data-testid="stSelectbox"],
+            div[data-testid="stMultiSelect"] + div[data-testid="stMultiSelect"] {
+                margin-top: 0.2rem !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        col_img, col_empty = st.columns([0.7, 0.3])
+        with col_img:
+            st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+            st.image("Sebrae + Beta-i.png", use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with col_empty:
+            st.empty()
         
         # Filtro de Região
         regioes_disponiveis = sorted(df_regions['regiao_final'].unique())
@@ -1087,6 +2052,80 @@ def create_choropleth_map(df, df_atores=None):
             key="filtro_municipio"
         )
         
+        # Filtro de Segmentos (Startups) - apenas se Startup estiver selecionada
+        segmentos_selecionados = []
+        if "Startup" in categorias_disponiveis:
+            # Verifica se há dados de atores para obter segmentos
+            df_atores_para_segmentos = None
+            try:
+                df_atores_para_segmentos = load_data_base_atores(force_reload=False)
+            except:
+                pass
+            
+            if df_atores_para_segmentos is not None and not df_atores_para_segmentos.empty:
+                # Procura coluna de setor/segmento
+                coluna_setor = None
+                possiveis_nomes_setor = ['setor', 'sector', 'segmento', 'segment', 'segmentos', 'setores']
+                for col in df_atores_para_segmentos.columns:
+                    col_lower = str(col).lower().strip()
+                    if any(nome in col_lower for nome in possiveis_nomes_setor):
+                        coluna_setor = col
+                        break
+                
+                if coluna_setor:
+                    # Filtra apenas startups para obter segmentos únicos
+                    coluna_categoria_atores = None
+                    possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type']
+                    for col in df_atores_para_segmentos.columns:
+                        col_lower = str(col).lower().strip()
+                        if any(nome in col_lower for nome in possiveis_nomes_categoria):
+                            coluna_categoria_atores = col
+                            break
+                    
+                    # Filtra apenas startups
+                    df_startups_para_segmentos = df_atores_para_segmentos.copy()
+                    if coluna_categoria_atores:
+                        df_startups_para_segmentos = df_startups_para_segmentos[
+                            df_startups_para_segmentos[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+                        ]
+                    
+                    # Obtém segmentos únicos (não vazios)
+                    segmentos_disponiveis = df_startups_para_segmentos[coluna_setor].dropna()
+                    segmentos_disponiveis = segmentos_disponiveis[segmentos_disponiveis.astype(str).str.strip() != '']
+                    segmentos_disponiveis = sorted(segmentos_disponiveis.unique().tolist())
+                    
+                    if segmentos_disponiveis:
+                        # Só mostra o filtro se Startup estiver nas categorias selecionadas
+                        # Verifica tanto no estado dos cards quanto no filtro de categoria
+                        categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
+                                                  if ativa and cat in categorias_disponiveis]
+                        filtro_categoria_atual = st.session_state.get("filtro_categoria", categorias_ativas_list)
+                        
+                        # Inicializa com lista vazia se não estiver definido
+                        if "filtro_segmentos" not in st.session_state:
+                            st.session_state.filtro_segmentos = []
+                        
+                        # Garante que os valores no session_state sejam válidos (ANTES de criar o widget)
+                        segmentos_validos = [s for s in st.session_state.filtro_segmentos if s in segmentos_disponiveis]
+                        if len(segmentos_validos) != len(st.session_state.filtro_segmentos):
+                            st.session_state.filtro_segmentos = segmentos_validos
+                        
+                        # Se Startup não está selecionada, limpa o filtro de segmentos (ANTES de criar o widget)
+                        if "Startup" not in categorias_ativas_list and "Startup" not in filtro_categoria_atual:
+                            if st.session_state.filtro_segmentos:
+                                st.session_state.filtro_segmentos = []
+                        
+                        # Mostra o filtro se Startup estiver selecionada
+                        if "Startup" in categorias_ativas_list or "Startup" in filtro_categoria_atual:
+                            segmentos_selecionados = st.multiselect(
+                                "Segmentos (Startups)",
+                                options=segmentos_disponiveis,
+                                default=st.session_state.filtro_segmentos,
+                                key="filtro_segmentos",
+                                help="Filtra apenas startups por segmento. Não afeta outros atores."
+                            )
+                            # Não modificar st.session_state.filtro_segmentos aqui - o Streamlit já atualiza automaticamente via key
+        
         # Processa cliques nos cards ANTES de criar o multiselect (para evitar erro de modificação do session_state)
         # Mapeia nomes dos cards para nomes das categorias no filtro
         card_to_category = {
@@ -1100,9 +2139,6 @@ def create_choropleth_map(df, df_atores=None):
         
         # Processa cliques nos cards (verifica flags de botões clicados)
         for card_name, category_name in card_to_category.items():
-            if category_name == "Hubs, Incubadoras e Parques Tecnológicos":
-                continue  # Pula Hubs (não tem dados)
-            
             click_flag_key = f"card_clicked_{category_name}"
             # Verifica se o card foi clicado (flag foi setada na renderização anterior)
             if click_flag_key in st.session_state and st.session_state[click_flag_key]:
@@ -1122,30 +2158,108 @@ def create_choropleth_map(df, df_atores=None):
         categorias_ativas_list = [cat for cat, ativa in st.session_state.categorias_ativas.items() 
                                   if ativa and cat in categorias_disponiveis]
         
-        # Inicializa o filtro baseado nas categorias ativas
-        if "filtro_categoria" not in st.session_state:
-            st.session_state.filtro_categoria = categorias_ativas_list.copy()
-        else:
-            # Sincroniza: se o usuário mudou manualmente no multiselect, atualiza o estado dos cards
-            for cat in categorias_disponiveis:
-                if cat in st.session_state.categorias_ativas:
-                    is_in_filter = cat in st.session_state.filtro_categoria
-                    if st.session_state.categorias_ativas[cat] != is_in_filter:
-                        st.session_state.categorias_ativas[cat] = is_in_filter
+        # Atualiza o filtro baseado nas categorias ativas (usado internamente para filtrar dados)
+        st.session_state.filtro_categoria = categorias_ativas_list.copy()
         
-        categorias_selecionadas = st.multiselect(
-            "Categoria do Ator",
-            options=categorias_disponiveis,
-            default=categorias_ativas_list,
-            key="filtro_categoria"
-        )
+        # Filtro multiselect removido - agora usa apenas a legenda de categorias
+        # Usa as categorias ativas como categorias selecionadas
+        categorias_selecionadas = categorias_ativas_list
         
-        # Sincroniza estado dos cards com mudanças no multiselect
-        for cat in categorias_disponiveis:
-            if cat in st.session_state.categorias_ativas:
-                is_in_filter = cat in categorias_selecionadas
-                if st.session_state.categorias_ativas[cat] != is_in_filter:
-                    st.session_state.categorias_ativas[cat] = is_in_filter
+        # Aplica filtro de segmentos aos dados de atores ANTES de agregar
+        segmentos_filtro = st.session_state.get("filtro_segmentos", [])
+        df_atores_filtrado = df_atores.copy() if df_atores is not None and not df_atores.empty else None
+        
+        # Se há filtro de segmentos e há dados de atores, filtra apenas startups por segmento
+        if segmentos_filtro and len(segmentos_filtro) > 0 and df_atores_filtrado is not None:
+            # Procura coluna de setor/segmento
+            coluna_setor_atores = None
+            possiveis_nomes_setor = ['setor', 'sector', 'segmento', 'segment', 'segmentos', 'setores']
+            for col in df_atores_filtrado.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_setor):
+                    coluna_setor_atores = col
+                    break
+            
+            # Procura coluna de categoria
+            coluna_categoria_atores = None
+            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+            for col in df_atores_filtrado.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_categoria):
+                    coluna_categoria_atores = col
+                    break
+            
+            if coluna_setor_atores and coluna_categoria_atores:
+                # Separa startups e outros atores
+                mask_startup = df_atores_filtrado[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+                df_startups_filtrado = df_atores_filtrado[mask_startup].copy()
+                df_outros_atores = df_atores_filtrado[~mask_startup].copy()
+                
+                # Aplica filtro de segmentos apenas nas startups
+                df_startups_filtrado = df_startups_filtrado[
+                    df_startups_filtrado[coluna_setor_atores].astype(str).str.strip().isin(
+                        [str(seg).strip() for seg in segmentos_filtro]
+                    )
+                ]
+                
+                # Combina startups filtradas com outros atores
+                df_atores_filtrado = pd.concat([df_startups_filtrado, df_outros_atores], ignore_index=True)
+        
+        # Reagrega dados se houver filtro de segmentos e dados de atores
+        if segmentos_filtro and len(segmentos_filtro) > 0 and df_atores_filtrado is not None and not df_atores_filtrado.empty:
+            # Procura colunas de localização para reagregar
+            coluna_cidade_atores = None
+            possiveis_nomes_cidade = ['cidade', 'municipio', 'cidade_max', 'município']
+            for col in df_atores_filtrado.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_cidade):
+                    coluna_cidade_atores = col
+                    break
+            
+            coluna_regiao_atores = None
+            possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
+                                     'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
+            for col in df_atores_filtrado.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_regiao):
+                    coluna_regiao_atores = col
+                    break
+            
+            if coluna_categoria_atores and coluna_cidade_atores:
+                # Filtra apenas startups para contar
+                df_startups_para_contar = df_atores_filtrado[
+                    df_atores_filtrado[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup'
+                ].copy()
+                
+                # Reagrega contagens de startups por município/região
+                if coluna_regiao_atores:
+                    df_agregado = df_startups_para_contar.groupby([coluna_regiao_atores, coluna_cidade_atores]).size().reset_index(name='qtd_startups_filtrado')
+                else:
+                    df_agregado = df_startups_para_contar.groupby([coluna_cidade_atores]).size().reset_index(name='qtd_startups_filtrado')
+                
+                # Atualiza df_regions com as novas contagens (apenas para startups)
+                for idx, row in df_regions.iterrows():
+                    regiao_match = str(row['regiao_final']).strip() if pd.notna(row['regiao_final']) else ""
+                    municipio_match = str(row[coluna_municipio]).strip() if pd.notna(row[coluna_municipio]) else ""
+                    
+                    # Busca contagem filtrada
+                    if coluna_regiao_atores:
+                        match = df_agregado[
+                            (df_agregado[coluna_regiao_atores].astype(str).str.strip().str.lower() == regiao_match.lower()) &
+                            (df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower())
+                        ]
+                    else:
+                        match = df_agregado[
+                            df_agregado[coluna_cidade_atores].astype(str).str.strip().str.lower() == municipio_match.lower()
+                        ]
+                    
+                    if not match.empty and coluna_qtd_startups in df_regions.columns:
+                        # Atualiza apenas a contagem de startups com o valor filtrado
+                        nova_contagem = match.iloc[0]['qtd_startups_filtrado'] if 'qtd_startups_filtrado' in match.columns else 0
+                        df_regions.loc[idx, coluna_qtd_startups] = int(nova_contagem) if pd.notna(nova_contagem) else 0
+                    elif coluna_qtd_startups in df_regions.columns:
+                        # Se não encontrou match, zera a contagem de startups (não há startups desse segmento neste município)
+                        df_regions.loc[idx, coluna_qtd_startups] = 0
         
         # Aplica filtros aos dados
         df_regions_filtrado = df_regions.copy()
@@ -1180,6 +2294,9 @@ def create_choropleth_map(df, df_atores=None):
             
             if "Órgãos Públicos e Apoio" in categorias_selecionadas and coluna_qtd_orgaos in df_regions_filtrado.columns:
                 count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_orgaos], errors='coerce').fillna(0)
+            
+            if "Hubs, Incubadoras e Parques Tecnológicos" in categorias_selecionadas and coluna_qtd_hubs_incubadoras_parquestecnologicos in df_regions_filtrado.columns:
+                count_filtrado += pd.to_numeric(df_regions_filtrado[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0)
             
             df_regions_filtrado['count'] = count_filtrado.astype(int)
         elif categorias_disponiveis:
@@ -1231,53 +2348,38 @@ def create_choropleth_map(df, df_atores=None):
         else:
             contadores["Órgãos Públicos e Apoio"] = 0
         
-        # Outras categorias - por enquanto ficam zeradas (serão implementadas depois)
-        contadores["Hubs, Incubadoras e Parques Tecnológicos"] = 0
+        # Hubs, Incubadoras e Parques Tecnológicos - usa dados agregados do mapa
+        if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_regions_filtrado.columns:
+            total_hubs = pd.to_numeric(df_regions_filtrado[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0).sum()
+            contadores["Hubs, Incubadoras e Parques Tecnológicos"] = int(total_hubs)
+        else:
+            contadores["Hubs, Incubadoras e Parques Tecnológicos"] = 0
         
-        # Cria cards em grid 3x2 (clicáveis)
-        col1, col2, col3 = st.columns(3)
+        # Prepara dados para a legenda de categorias
+        categorias_legend_data = {}
+        card_to_category = {
+            "Startups": "Startup",
+            "Grandes Empresas Âncoras": "Empresa Âncora",
+            "Fundos e Investidores": "Fundos e Investidores",
+            "Universidades e ICTs": "Universidades e ICTs",
+            "Hubs, Incubadoras e Parques Tecnológicos": "Hubs, Incubadoras e Parques Tecnológicos",
+            "Órgãos Públicos e Apoio": "Órgãos Públicos e Apoio"
+        }
         
-        # Função auxiliar para renderizar card clicável
-        def render_clickable_card(card_name, category_name, value):
-            is_active = st.session_state.categorias_ativas.get(category_name, True)
-            disabled_class = " disabled" if not is_active else ""
-            button_key = f"card_btn_{category_name}"
-            click_flag_key = f"card_clicked_{category_name}"
+        for display_name, category_name in card_to_category.items():
+            # Obtém a cor da categoria
+            color = CATEGORIA_COLORS.get(category_name, "#cccccc")
+            # Obtém o total (usa o nome de exibição para buscar no contadores)
+            total = contadores.get(display_name, 0)
             
-            # Inicializa o flag de clique se não existir
-            if click_flag_key not in st.session_state:
-                st.session_state[click_flag_key] = False
-            
-            # Cria o botão estilizado como card
-            # O CSS customizado aplicará os estilos baseado na key do botão
-            button_label = f"{card_name}\n\n{value:,}"
-            
-            # Usa st.button com CSS customizado para fazer parecer um card
-            # O CSS aplica estilos baseado no data-testid que o Streamlit gera
-            button_clicked = st.button(button_label, key=button_key, use_container_width=True, type="secondary", disabled=not is_active)
-            
-            if button_clicked:
-                # Marca que o botão foi clicado (será processado na próxima renderização, antes do multiselect)
-                st.session_state[click_flag_key] = True
-                st.rerun()
+            categorias_legend_data[category_name] = {
+                "color": color,
+                "total": total,
+                "display_name": display_name
+            }
         
-        with col1:
-            render_clickable_card("Startups", "Startup", contadores.get("Startups", 0))
-            render_clickable_card("Hubs, Incubadoras e Parques Tecnológicos", 
-                                 "Hubs, Incubadoras e Parques Tecnológicos", 
-                                 contadores.get("Hubs, Incubadoras e Parques Tecnológicos", 0))
-        
-        with col2:
-            render_clickable_card("Universidades e ICTs", "Universidades e ICTs", 
-                                contadores.get("Universidades e ICTs", 0))
-            render_clickable_card("Grandes Empresas Âncoras", "Empresa Âncora", 
-                                contadores.get("Grandes Empresas Âncoras", 0))
-        
-        with col3:
-            render_clickable_card("Fundos e Investidores", "Fundos e Investidores", 
-                                contadores.get("Fundos e Investidores", 0))
-            render_clickable_card("Órgãos Públicos e Apoio", "Órgãos Públicos e Apoio", 
-                                contadores.get("Órgãos Públicos e Apoio", 0))
+        # Renderiza a legenda de categorias
+        render_category_legend(categorias_legend_data, title="")
     
     # Atualiza df_regions com os dados filtrados
     df_regions = df_regions_filtrado
@@ -1414,6 +2516,7 @@ def create_choropleth_map(df, df_atores=None):
         qtd_fundos_e_investidores_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0).astype(int).values if coluna_qtd_fundos_e_investidores in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
         qtd_universidades_icts_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_universidades_icts], errors='coerce').fillna(0).astype(int).values if coluna_qtd_universidades_icts in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
         qtd_orgaos_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_orgaos], errors='coerce').fillna(0).astype(int).values if coluna_qtd_orgaos in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
+        qtd_hubs_incubadoras_parquestecnologicos_vals = pd.to_numeric(df_regiao_com_match[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0).astype(int).values if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_regiao_com_match.columns else np.zeros(len(df_regiao_com_match))
 
         # Constrói hovertemplate dinamicamente baseado nas categorias selecionadas
         hovertemplate_parts = [
@@ -1424,8 +2527,8 @@ def create_choropleth_map(df, df_atores=None):
         # Se nenhuma categoria selecionada, mostra todas as disponíveis
         categorias_para_mostrar = categorias_selecionadas if categorias_selecionadas else categorias_disponiveis
         
-        # Adiciona todas as categorias no customdata na ordem fixa: startups, empresas âncora, fundos, universidades, órgãos
-        # Índices: 0=região, 1=município, 2=startups, 3=empresas âncora, 4=fundos e investidores, 5=universidades e ICTs, 6=órgãos
+        # Adiciona todas as categorias no customdata na ordem fixa: startups, empresas âncora, fundos, universidades, órgãos, hubs
+        # Índices: 0=região, 1=município, 2=startups, 3=empresas âncora, 4=fundos e investidores, 5=universidades e ICTs, 6=órgãos, 7=hubs
         
         # Adiciona apenas as categorias que devem ser mostradas no hovertemplate
         if "Startup" in categorias_para_mostrar:
@@ -1442,6 +2545,9 @@ def create_choropleth_map(df, df_atores=None):
         
         if "Órgãos Públicos e Apoio" in categorias_para_mostrar:
             hovertemplate_parts.append("<b>Total de Órgãos Públicos e Apoio:</b> %{customdata[6]}<br>")
+        
+        if "Hubs, Incubadoras e Parques Tecnológicos" in categorias_para_mostrar:
+            hovertemplate_parts.append("<b>Total de Hubs, Incubadoras e Parques Tecnológicos:</b> %{customdata[7]}<br>")
         
         hovertemplate_parts.append("<extra></extra>")
         hovertemplate_str = "".join(hovertemplate_parts)
@@ -1467,6 +2573,7 @@ def create_choropleth_map(df, df_atores=None):
                         qtd_fundos_e_investidores_vals,
                         qtd_universidades_icts_vals,
                         qtd_orgaos_vals,
+                        qtd_hubs_incubadoras_parquestecnologicos_vals,
                     ),
                     axis=-1,
                 ),
@@ -1486,25 +2593,25 @@ def create_choropleth_map(df, df_atores=None):
             zoom=map_zoom,
             layers=map_layers,
         ),
-        margin=dict(l=0, r=0, t=30, b=0),
-        title_text="Mapa Político de Minas Gerais - Divisão por Região",
+        margin=dict(l=0, r=0, t=0, b=0),
+        title_text="",
         showlegend=True,
         hoverlabel=dict(
-            bgcolor="rgba(30, 30, 30, 0.95)",
-            bordercolor="rgba(255, 255, 255, 0.2)",
-            font=dict(size=15, color="rgba(255, 255, 255, 0.95)", family="Arial, sans-serif"),
+            bgcolor="rgba(255, 255, 255, 0.98)",  # Fundo branco
+            bordercolor=SEBRAE_AZUL,  # Borda azul Sebrae
+            font=dict(size=15, color=SEBRAE_CINZA_ESCURO, family="Arial, sans-serif"),  # Texto cinza escuro
             namelength=-1,
         ),
         legend=dict(
             orientation="v",
             yanchor="top",
             y=0.98,
-            xanchor="right",
-            x=0.99,
-            bgcolor="rgba(0,0,0,0.75)",
-            bordercolor="rgba(255,255,255,0.3)",
-            borderwidth=1,
-            font=dict(color="#e2e8f0", size=13),
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255,255,255,0.95)",  # Fundo branco semi-transparente
+            bordercolor=SEBRAE_AZUL,  # Borda azul Sebrae
+            borderwidth=2,
+            font=dict(color=SEBRAE_CINZA_ESCURO, size=13),  # Texto cinza escuro
             itemclick="toggleothers",
             itemdoubleclick="toggle",
             tracegroupgap=8,
@@ -1512,8 +2619,8 @@ def create_choropleth_map(df, df_atores=None):
             itemwidth=30,
         ),
         height=MAP_HEIGHT,
-        plot_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
-        paper_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
+        plot_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
+        paper_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
     )
 
     # Mostra o mapa no lado direito (legenda está dentro do mapa)
@@ -1574,7 +2681,23 @@ def create_alternative_choropleth(df_regions):
         return
 
     regioes = sorted(df_regions['regiao_final'].unique())
-    base_colors = {regiao: REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)] for i, regiao in enumerate(regioes)}
+    
+    # Cores especiais para regiões específicas
+    TRIANGULO_COLOR = "#003366"  # Azul escuro para Triângulo e Alto Paranaíba
+    RIO_DOCE_COLOR = "#8B0000"  # Vermelho escuro para Rio Doce e Vale do Aço
+    
+    base_colors = {}
+    for i, regiao in enumerate(regioes):
+        regiao_lower = str(regiao).lower().strip()
+        
+        # Verifica se é Triângulo e Alto Paranaíba
+        if 'triângulo' in regiao_lower or 'triangulo' in regiao_lower or 'paranaíba' in regiao_lower or 'paranaiba' in regiao_lower:
+            base_colors[regiao] = TRIANGULO_COLOR
+        # Verifica se é Rio Doce e Vale do Aço
+        elif 'rio doce' in regiao_lower or 'vale do aço' in regiao_lower or 'vale do aco' in regiao_lower:
+            base_colors[regiao] = RIO_DOCE_COLOR
+        else:
+            base_colors[regiao] = REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)]
 
     fig = go.Figure()
 
@@ -1614,29 +2737,58 @@ def create_alternative_choropleth(df_regions):
             zoom=MAP_ZOOM,
             layers=map_layers,
         ),
-        margin=dict(l=0, r=0, t=30, b=0),
-        title_text="Mapa de Minas Gerais - Visualização por Região",
+        margin=dict(l=0, r=0, t=0, b=0),
+        title_text="",
         showlegend=True,
         legend=dict(
             orientation="v",
             yanchor="top",
-            y=1,
-            xanchor="right",
-            x=0.98,
-            bgcolor="rgba(0,0,0,0.7)",
-            bordercolor="rgba(255,255,255,0.2)",
-            borderwidth=1,
-            font=dict(color="#e2e8f0", size=11),
+            y=0.98,
+            xanchor="left",
+            x=0.01,
+            bgcolor="rgba(255,255,255,0.95)",  # Fundo branco semi-transparente
+            bordercolor=SEBRAE_AZUL,  # Borda azul Sebrae
+            borderwidth=2,
+            font=dict(color=SEBRAE_CINZA_ESCURO, size=11),  # Texto cinza escuro
             itemclick="toggleothers",
             itemdoubleclick="toggle",
         ),
         height=MAP_HEIGHT,
-        plot_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
-        paper_bgcolor="rgba(0,0,0,0)",  # Fundo transparente para combinar com a página
+        plot_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
+        paper_bgcolor=SEBRAE_AZUL_CLARO,  # Fundo azul Sebrae
     )
 
     # Mostra o mapa ocupando toda a largura (legenda está dentro do mapa)
     st.plotly_chart(fig, use_container_width=True, config=MAP_CONFIG)
+
+def _render_custom_html_table(df_display, styled_df, is_multiindex, categoria_col_for_style,
+                             regiao_col_for_style, regioes_cores, coluna_site, format_dict):
+    """
+    Renderiza tabela usando HTML customizado em vez de st.dataframe.
+    Esta função detecta automaticamente os parâmetros necessários.
+    """
+    html_table = _build_custom_html_table(
+        df_display,
+        styled_df,
+        is_multiindex,
+        categoria_col_for_style,
+        regiao_col_for_style,
+        regioes_cores,
+        coluna_site,
+        format_dict
+    )
+    # Separa o CSS do HTML para injetar corretamente
+    if html_table.startswith('<style>'):
+        # Extrai o CSS e o HTML
+        css_end = html_table.find('</style>') + 8
+        css_part = html_table[:css_end]
+        html_part = html_table[css_end:]
+        # Injeta o CSS primeiro
+        st.markdown(css_part, unsafe_allow_html=True)
+        # Depois injeta o HTML da tabela
+        st.markdown(html_part, unsafe_allow_html=True)
+    else:
+        st.markdown(html_table, unsafe_allow_html=True)
 
 def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col_for_style, 
                              regiao_col_for_style, regioes_cores, coluna_site, format_dict):
@@ -1669,8 +2821,11 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
             if col == regiao_col_for_style:
                 regiao_col_idx = idx
     
-    # Inicia construção do HTML
-    html_parts = ['<table id="data-table" style="width:100%;border-collapse:collapse;">']
+    # Inicia construção do HTML com wrapper para controlar largura e altura
+    # Altura aproximada para 10 linhas: 10 linhas * (altura da linha ~35px) + cabeçalho ~40px = ~390px
+    html_parts = [f'<div style="width:100%;max-width:100%;overflow-x:auto;margin:0 auto;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);border:1px solid rgba(0,0,0,0.4);background-color:white;">']
+    html_parts.append(f'<div style="max-height:390px;overflow-y:auto;overflow-x:auto;">')
+    html_parts.append(f'<table id="data-table" style="width:100%;border-collapse:collapse;background-color:white;font-size:0.85rem;margin:0;">')
     
     # Cabeçalhos
     if is_multiindex:
@@ -1695,13 +2850,9 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
         for group_name, indices in groups.items():
             if group_name:  # Só renderiza se tiver nome
                 colspan = len(indices)
-                if group_name == "Dados Gerais":
-                    bg_color = "rgba(31, 119, 180, 0.25)"
-                elif group_name == "Dados (Startups)":
-                    bg_color = "rgba(44, 160, 44, 0.25)"
-                else:
-                    bg_color = "transparent"
-                html_parts.append(f'<th colspan="{colspan}" style="background-color:{bg_color};color:white;font-weight:600;padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.1);">{group_name}</th>')
+                # Cabeçalho agrupado também em azul escuro
+                bg_color = "#003366"  # Azul escuro
+                html_parts.append(f'<th colspan="{colspan}" style="background-color:{bg_color};color:white;font-weight:600;padding:6px 8px;text-align:left;border:1px solid rgba(0,0,0,0.1);font-size:0.85rem;white-space:nowrap;">{group_name}</th>')
         
         html_parts.append('</tr>')
         
@@ -1712,14 +2863,14 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
                 col_name = col_tuple[1]
             else:
                 col_name = col_tuple
-            style = 'padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.1);'
+            style = f'padding:6px 8px;text-align:left;border:1px solid rgba(0,0,0,0.1);background-color:#003366;color:white;font-weight:600;font-size:0.85rem;white-space:nowrap;'
             html_parts.append(f'<th style="{style}">{col_name}</th>')
         html_parts.append('</tr>')
         html_parts.append('</thead>')
     else:
         html_parts.append('<thead><tr>')
         for col in df_display.columns:
-            style = 'padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.1);'
+            style = 'padding:6px 8px;text-align:left;border:1px solid rgba(0,0,0,0.1);background-color:#003366;color:white;font-weight:600;font-size:0.85rem;white-space:nowrap;'
             html_parts.append(f'<th style="{style}">{col}</th>')
         html_parts.append('</tr></thead>')
     
@@ -1744,7 +2895,12 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
                 col_name = col
             
             value = row[col]
-            cell_style = 'padding:8px;border:1px solid rgba(255,255,255,0.1);'
+            # Estilo base: fundo branco e texto escuro
+            cell_style = f'padding:6px 8px;border:1px solid rgba(0,0,0,0.1);background-color:white !important;color:{SEBRAE_CINZA_ESCURO} !important;font-size:0.85rem;word-wrap:break-word;overflow-wrap:break-word;'
+            
+            # Se for a coluna de site, centraliza o conteúdo
+            if col_idx == site_col_idx:
+                cell_style += 'text-align:center;'
             
             # Aplica estilos específicos
             if col_idx == categoria_col_idx and categoria_col_for_style:
@@ -1781,7 +2937,8 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
                     value_escaped = html_module.escape(str(value)) if value else ''
                     # URL no href não precisa ser escapada (mas escapa para o title)
                     site_url_title = html_module.escape(site_url)
-                    cell_value = f'<a href="{site_url}" target="_blank" rel="noopener noreferrer" style="color:#4A9EFF;text-decoration:none;font-size:1.2rem;margin-right:8px;display:inline-block;" title="{site_url_title}">🔗</a><span style="color:#cccccc;">{value_escaped}</span>'
+                    # Mostra apenas o ícone, sem o texto da URL
+                    cell_value = f'<a href="{site_url}" target="_blank" rel="noopener noreferrer" style="color:{SEBRAE_AZUL};text-decoration:none;font-size:1.1rem;display:inline-block;text-align:center;" title="{site_url_title}">🔗</a>'
                 else:
                     # Formata outros valores
                     cell_value = str(value)
@@ -1797,26 +2954,108 @@ def _build_custom_html_table(df_display, styled_df, is_multiindex, categoria_col
         html_parts.append('</tr>')
     html_parts.append('</tbody>')
     html_parts.append('</table>')
+    html_parts.append('</div>')  # Fecha o div de scroll
+    html_parts.append('</div>')  # Fecha o wrapper div principal
     
     # Adiciona CSS para estilização da tabela
-    css_js = """
+    css_js = f"""
     <style>
-        #data-table, #data-table-2 {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: transparent;
-        }
-        #data-table th, #data-table td, #data-table-2 th, #data-table-2 td {
-            color: white;
-        }
-        #data-table td a, #data-table-2 td a {
+        /* Container da tabela - mesma largura do heatmap */
+        #data-table, #data-table-2 {{
+            width: 100% !important;
+            max-width: 100% !important;
+            border-collapse: collapse !important;
+            background-color: white !important;
+            font-size: 0.85rem !important;
+            table-layout: auto !important;
+            border-radius: 0 !important; /* Remove border-radius da tabela, deixa no container */
+        }}
+        
+        /* Estilização da barra de rolagem */
+        div[style*="max-height"]::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+        
+        div[style*="max-height"]::-webkit-scrollbar-track {{
+            background: #f1f1f1;
+            border-radius: 4px;
+        }}
+        
+        div[style*="max-height"]::-webkit-scrollbar-thumb {{
+            background: #888;
+            border-radius: 4px;
+        }}
+        
+        div[style*="max-height"]::-webkit-scrollbar-thumb:hover {{
+            background: #555;
+        }}
+        /* Cabeçalho - azul escuro com texto branco */
+        #data-table thead th, 
+        #data-table-2 thead th,
+        #data-table thead tr th,
+        #data-table-2 thead tr th {{
+            background-color: #003366 !important;
+            color: white !important;
+            font-weight: 600 !important;
+            padding: 6px 8px !important;
+            text-align: left !important;
+            border: 1px solid rgba(0,0,0,0.1) !important;
+            font-size: 0.85rem !important;
+            white-space: nowrap !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 10 !important;
+        }}
+        
+        /* Primeira célula do cabeçalho - canto superior esquerdo arredondado */
+        #data-table thead tr:first-child th:first-child,
+        #data-table-2 thead tr:first-child th:first-child {{
+            border-top-left-radius: 8px !important;
+        }}
+        
+        /* Última célula do cabeçalho - canto superior direito arredondado */
+        #data-table thead tr:first-child th:last-child,
+        #data-table-2 thead tr:first-child th:last-child {{
+            border-top-right-radius: 8px !important;
+        }}
+        
+        /* Última linha - cantos inferiores arredondados */
+        #data-table tbody tr:last-child td:first-child,
+        #data-table-2 tbody tr:last-child td:first-child {{
+            border-bottom-left-radius: 8px !important;
+        }}
+        
+        #data-table tbody tr:last-child td:last-child,
+        #data-table-2 tbody tr:last-child td:last-child {{
+            border-bottom-right-radius: 8px !important;
+        }}
+        /* Células do corpo - fundo branco com texto escuro */
+        #data-table tbody td, 
+        #data-table-2 tbody td,
+        #data-table tbody tr td,
+        #data-table-2 tbody tr td {{
+            color: {SEBRAE_CINZA_ESCURO} !important;
+            background-color: white !important;
+            padding: 6px 8px !important;
+            border: 1px solid rgba(0,0,0,0.1) !important;
+            font-size: 0.85rem !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }}
+        /* Garante que células com cores especiais mantenham fundo branco quando não têm cor especial */
+        #data-table tbody td:not([style*="background-color"]),
+        #data-table-2 tbody td:not([style*="background-color"]) {{
+            background-color: white !important;
+        }}
+        #data-table td a, #data-table-2 td a {{
             text-decoration: none;
-        }
-        #data-table td a:hover, #data-table-2 td a:hover {
+        }}
+        #data-table td a:hover, #data-table-2 td a:hover {{
             opacity: 0.8;
             transform: scale(1.1);
             transition: all 0.2s ease;
-        }
+        }}
     </style>
     """
     
@@ -2171,7 +3410,22 @@ def create_data_table(df, df_regions_map=None):
             # Obtém todas as regiões únicas do DataFrame
             regioes_unicas = sorted(df[coluna_regiao_sebrae].dropna().unique())
             # Atribui cores usando a mesma paleta do mapa
-            regioes_cores = {regiao: REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)] for i, regiao in enumerate(regioes_unicas)}
+            # Cores especiais para regiões específicas
+            TRIANGULO_COLOR = "#003366"  # Azul escuro para Triângulo e Alto Paranaíba
+            RIO_DOCE_COLOR = "#8B0000"  # Vermelho escuro para Rio Doce e Vale do Aço
+            
+            regioes_cores = {}
+            for i, regiao in enumerate(regioes_unicas):
+                regiao_lower = str(regiao).lower().strip()
+                
+                # Verifica se é Triângulo e Alto Paranaíba
+                if 'triângulo' in regiao_lower or 'triangulo' in regiao_lower or 'paranaíba' in regiao_lower or 'paranaiba' in regiao_lower:
+                    regioes_cores[regiao] = TRIANGULO_COLOR
+                # Verifica se é Rio Doce e Vale do Aço
+                elif 'rio doce' in regiao_lower or 'vale do aço' in regiao_lower or 'vale do aco' in regiao_lower:
+                    regioes_cores[regiao] = RIO_DOCE_COLOR
+                else:
+                    regioes_cores[regiao] = REGION_COLOR_PALETTE[i % len(REGION_COLOR_PALETTE)]
         
         # Encontra a coluna de região no DataFrame display
         regiao_col_for_style = None
@@ -2254,10 +3508,10 @@ def create_data_table(df, df_regions_map=None):
             
             # Adiciona estilos aos cabeçalhos do MultiIndex
             if is_multiindex:
-                # Cor semi-transparente para "Dados Gerais" (azul suave)
-                cor_dados_gerais = "rgba(31, 119, 180, 0.25)"  # Azul semi-transparente
-                # Cor semi-transparente para "Dados (Startups)" (verde suave)
-                cor_dados_startups = "rgba(44, 160, 44, 0.25)"  # Verde semi-transparente
+                # Cor semi-transparente para "Dados Gerais" (azul Sebrae)
+                cor_dados_gerais = f"rgba(0, 82, 165, 0.15)"  # Azul Sebrae semi-transparente
+                # Cor semi-transparente para "Dados (Startups)" (verde Sebrae)
+                cor_dados_startups = f"rgba(0, 168, 89, 0.15)"  # Verde Sebrae semi-transparente
                 
                 # Estilos para os cabeçalhos do MultiIndex
                 # Agrupa colunas por cabeçalho para aplicar estilos
@@ -2378,7 +3632,17 @@ def create_data_table(df, df_regions_map=None):
                 else:
                     column_config_flat = column_config
                 
-                st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
+                # Usa HTML customizado em vez de st.dataframe
+                _render_custom_html_table(
+                    df_para_display,
+                    None,
+                    False,
+                    categoria_col_for_style if 'categoria_col_for_style' in locals() else None,
+                    regiao_col_for_style if 'regiao_col_for_style' in locals() else None,
+                    regioes_cores if 'regioes_cores' in locals() else {},
+                    coluna_site if 'coluna_site' in locals() else None,
+                    format_dict if 'format_dict' in locals() else {}
+                )
             else:
                 # Sempre aplana o MultiIndex antes de renderizar para evitar problemas de renderização
                 if is_multiindex:
@@ -2450,9 +3714,29 @@ def create_data_table(df, df_regions_map=None):
                         if format_dict_flat:
                             styled_df_flat = styled_df_flat.format(format_dict_flat, na_rep='')
                     
-                    st.dataframe(styled_df_flat, use_container_width=True, hide_index=True)
+                    # Usa HTML customizado em vez de st.dataframe
+                    _render_custom_html_table(
+                        df_para_display,
+                        styled_df_flat,
+                        False,
+                        categoria_col_flat if 'categoria_col_flat' in locals() else None,
+                        regiao_col_flat if 'regiao_col_flat' in locals() else None,
+                        regioes_cores if 'regioes_cores' in locals() else {},
+                        coluna_site if 'coluna_site' in locals() else None,
+                        format_dict_flat if 'format_dict_flat' in locals() else {}
+                    )
                 else:
-                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                    # Usa HTML customizado em vez de st.dataframe
+                    _render_custom_html_table(
+                        df_display,
+                        styled_df,
+                        is_multiindex,
+                        categoria_col_for_style if 'categoria_col_for_style' in locals() else None,
+                        regiao_col_for_style if 'regiao_col_for_style' in locals() else None,
+                        regioes_cores if 'regioes_cores' in locals() else {},
+                        coluna_site if 'coluna_site' in locals() else None,
+                        format_dict if 'format_dict' in locals() else {}
+                    )
         else:
             # Aplica cores nas células da coluna de região (se existir) mesmo sem coluna de categoria
             styled_df = None
@@ -2476,10 +3760,10 @@ def create_data_table(df, df_regions_map=None):
             
             # Aplica estilos aos cabeçalhos do MultiIndex mesmo sem coluna de categoria
             if is_multiindex:
-                # Cor semi-transparente para "Dados Gerais" (azul suave)
-                cor_dados_gerais = "rgba(31, 119, 180, 0.25)"  # Azul semi-transparente
-                # Cor semi-transparente para "Dados (Startups)" (verde suave)
-                cor_dados_startups = "rgba(44, 160, 44, 0.25)"  # Verde semi-transparente
+                # Cor semi-transparente para "Dados Gerais" (azul Sebrae)
+                cor_dados_gerais = f"rgba(0, 82, 165, 0.15)"  # Azul Sebrae semi-transparente
+                # Cor semi-transparente para "Dados (Startups)" (verde Sebrae)
+                cor_dados_startups = f"rgba(0, 168, 89, 0.15)"  # Verde Sebrae semi-transparente
                 
                 # Estilos para os cabeçalhos do MultiIndex
                 header_styles = []
@@ -2604,7 +3888,17 @@ def create_data_table(df, df_regions_map=None):
                 else:
                     column_config_flat = column_config
                 
-                st.dataframe(df_para_display, use_container_width=True, hide_index=True, column_config=column_config_flat)
+                # Usa HTML customizado em vez de st.dataframe
+                _render_custom_html_table(
+                    df_para_display,
+                    None,
+                    False,
+                    categoria_col_for_style if 'categoria_col_for_style' in locals() else None,
+                    regiao_col_for_style if 'regiao_col_for_style' in locals() else None,
+                    regioes_cores if 'regioes_cores' in locals() else {},
+                    coluna_site if 'coluna_site' in locals() else None,
+                    format_dict if 'format_dict' in locals() else {}
+                )
             else:
                 # Sempre aplana o MultiIndex antes de renderizar para evitar problemas de renderização
                 if is_multiindex:
@@ -2676,9 +3970,29 @@ def create_data_table(df, df_regions_map=None):
                         if format_dict_flat:
                             styled_df_flat = styled_df_flat.format(format_dict_flat, na_rep='')
                     
-                    st.dataframe(styled_df_flat, use_container_width=True, hide_index=True)
+                    # Usa HTML customizado em vez de st.dataframe
+                    _render_custom_html_table(
+                        df_para_display,
+                        styled_df_flat,
+                        False,
+                        categoria_col_flat if 'categoria_col_flat' in locals() else None,
+                        regiao_col_flat if 'regiao_col_flat' in locals() else None,
+                        regioes_cores if 'regioes_cores' in locals() else {},
+                        coluna_site if 'coluna_site' in locals() else None,
+                        format_dict_flat if 'format_dict_flat' in locals() else {}
+                    )
                 else:
-                    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                    # Usa HTML customizado em vez de st.dataframe
+                    _render_custom_html_table(
+                        df_display,
+                        styled_df,
+                        is_multiindex,
+                        categoria_col_for_style if 'categoria_col_for_style' in locals() else None,
+                        regiao_col_for_style if 'regiao_col_for_style' in locals() else None,
+                        regioes_cores if 'regioes_cores' in locals() else {},
+                        coluna_site if 'coluna_site' in locals() else None,
+                        format_dict if 'format_dict' in locals() else {}
+                    )
     else:
         st.warning("Nenhuma coluna encontrada nos dados.")
 
@@ -2686,7 +4000,6 @@ def main():
     """
     Função principal do dashboard
     """
-    
     # Carrega dados do mapa (aba "Municípios e Regiões")
     with st.spinner("Carregando dados do mapa..."):
         df_mapa = load_data_municipios_regioes(force_reload=False)
@@ -2728,13 +4041,24 @@ def main():
         # Aplica os mesmos filtros do mapa aos dados das startups
         df_startups_para_tabela = df_startups_filtered.copy()
         
+        # DEBUG: Mostra total inicial
+        total_inicial = len(df_startups_para_tabela)
+        with st.sidebar:
+            st.info(f"🔍 DEBUG: Total inicial de registros: {total_inicial}")
+        
         # Obtém os valores dos filtros do session_state (definidos no mapa)
         regiao_filtro_tabela = st.session_state.get("filtro_regiao", "Todas")
         municipio_filtro_tabela = st.session_state.get("filtro_municipio", "Todos")
         categorias_filtro_tabela = st.session_state.get("filtro_categoria", [])
+        segmentos_filtro_tabela = st.session_state.get("filtro_segmentos", [])
         
         # Aplica filtro de região
         if regiao_filtro_tabela != "Todas":
+                # DEBUG: Mostra total antes do filtro de região
+                total_antes_regiao = len(df_startups_para_tabela)
+                with st.sidebar:
+                    st.info(f"🔍 DEBUG: Registros antes do filtro de região: {total_antes_regiao}")
+                
                 # Procura coluna de região nas startups (com várias variações)
                 coluna_regiao_startups = None
                 possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
@@ -2749,9 +4073,19 @@ def main():
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
                     ]
+                    
+                    # DEBUG: Mostra total depois do filtro de região
+                    total_depois_regiao = len(df_startups_para_tabela)
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Registros depois do filtro de região: {total_depois_regiao} (perdidos: {total_antes_regiao - total_depois_regiao})")
         
         # Aplica filtro de município
         if municipio_filtro_tabela != "Todos":
+                # DEBUG: Mostra total antes do filtro de município
+                total_antes_municipio = len(df_startups_para_tabela)
+                with st.sidebar:
+                    st.info(f"🔍 DEBUG: Registros antes do filtro de município: {total_antes_municipio}")
+                
                 # Procura coluna de município/cidade nas startups
                 coluna_municipio_startups = None
                 possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
@@ -2765,9 +4099,19 @@ def main():
                     df_startups_para_tabela = df_startups_para_tabela[
                         df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
                     ]
+                    
+                    # DEBUG: Mostra total depois do filtro de município
+                    total_depois_municipio = len(df_startups_para_tabela)
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Registros depois do filtro de município: {total_depois_municipio} (perdidos: {total_antes_municipio - total_depois_municipio})")
         
         # Aplica filtro de categoria
-        if categorias_filtro_tabela:
+        if categorias_filtro_tabela and len(categorias_filtro_tabela) > 0:
+                # DEBUG: Mostra total antes do filtro de categoria
+                total_antes_categoria = len(df_startups_para_tabela)
+                with st.sidebar:
+                    st.info(f"🔍 DEBUG: Registros antes do filtro de categoria: {total_antes_categoria}")
+                
                 # Procura coluna de categoria nas startups
                 coluna_categoria_startups = None
                 possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
@@ -2777,27 +4121,246 @@ def main():
                         coluna_categoria_startups = col
                         break
                 
+                # DEBUG: Mostra qual coluna foi encontrada
+                if coluna_categoria_startups:
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Coluna de categoria encontrada: '{coluna_categoria_startups}'")
+                        
+                        # DEBUG: Mostra valores únicos na coluna de categoria
+                        valores_unicos = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().unique()
+                        st.info(f"🔍 DEBUG: Valores únicos na coluna '{coluna_categoria_startups}': {sorted(valores_unicos)[:10]}... (Total: {len(valores_unicos)} valores únicos)")
+                        
+                        # DEBUG: Mostra quantidade total por categoria ANTES do filtro
+                        contagem_por_categoria = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().value_counts()
+                        st.info(f"🔍 DEBUG: Quantidade total por categoria ANTES do filtro:")
+                        for cat, qtd in contagem_por_categoria.head(15).items():
+                            st.text(f"   • {cat}: {qtd}")
+                        if len(contagem_por_categoria) > 15:
+                            st.text(f"   ... e mais {len(contagem_por_categoria) - 15} categorias")
+                        
+                        # DEBUG: Mostra categorias que estão sendo filtradas
+                        st.info(f"🔍 DEBUG: Categorias filtradas: {categorias_filtro_tabela}")
+                
                 if coluna_categoria_startups:
                     # Mapeia categorias do filtro do mapa para categorias reais na tabela
-                    categorias_mapeadas = []
+                    # Usa busca case-insensitive e parcial para melhor matching
+                    mask = pd.Series([False] * len(df_startups_para_tabela))
+                    
+                    # Normaliza a coluna de categoria para comparação
+                    coluna_categoria_normalizada = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().str.lower()
+                    
                     for cat_filtro in categorias_filtro_tabela:
-                        cat_filtro_str = str(cat_filtro).strip()
-                        if cat_filtro_str == "Universidades e ICTs":
-                            # Mapeia para as categorias reais na tabela
-                            categorias_mapeadas.extend(["Universidade", "ICT", "Universidade/ICT"])
-                        elif cat_filtro_str == "Órgãos Públicos e Apoio":
-                            # Mapeia para as categorias reais na tabela
-                            categorias_mapeadas.extend(["Órgão Público", "Órgão de Apoio"])
-                        else:
-                            # Mantém a categoria original para outras categorias
-                            categorias_mapeadas.append(cat_filtro_str)
+                        cat_filtro_str = str(cat_filtro).strip().lower()
+                        
+                        # 1. Match exato (case-insensitive) - mais específico primeiro
+                        mask |= coluna_categoria_normalizada == cat_filtro_str
+                        
+                        # 2. Match parcial (contém a string completa) - mais inclusivo
+                        mask |= coluna_categoria_normalizada.str.contains(cat_filtro_str, case=False, na=False, regex=False)
+                        
+                        # 3. Mapeamentos específicos para categorias com nomes diferentes
+                        # IMPORTANTE: Usa condições separadas (não elif) para permitir múltiplos matches
+                        # Startup
+                        if cat_filtro_str == "startup":
+                            mask |= coluna_categoria_normalizada.isin(["startup", "startups"])
+                        
+                        # Empresa Âncora / Grandes Empresas Âncoras
+                        if "empresa" in cat_filtro_str and ("âncora" in cat_filtro_str or "ancora" in cat_filtro_str or "grande" in cat_filtro_str):
+                            mask |= (coluna_categoria_normalizada.str.contains("empresa", case=False, na=False, regex=False) & 
+                                    coluna_categoria_normalizada.str.contains("ancora", case=False, na=False, regex=False))
+                            # Também busca variações
+                            mask |= coluna_categoria_normalizada == "empresa âncora"
+                            mask |= coluna_categoria_normalizada == "empresa ancora"
+                            mask |= coluna_categoria_normalizada == "grande empresa âncora"
+                            mask |= coluna_categoria_normalizada == "grande empresa ancora"
+                        
+                        # Empresa Estatal
+                        if "empresa" in cat_filtro_str and "estatal" in cat_filtro_str:
+                            mask |= coluna_categoria_normalizada.str.contains("empresa", case=False, na=False, regex=False) & \
+                                   coluna_categoria_normalizada.str.contains("estatal", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada == "empresa estatal"
+                        
+                        # Fundos e Investidores - busca mais inclusiva
+                        if "fundos" in cat_filtro_str or "investidor" in cat_filtro_str or "fundo" in cat_filtro_str:
+                            # Busca por qualquer variação de "fundo" ou "investidor" (mais inclusivo)
+                            # Se contém "fundo" OU "investidor", captura
+                            mask |= coluna_categoria_normalizada.str.contains("fundo", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("fundos", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("investidor", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("investidores", case=False, na=False, regex=False)
+                            # Também verifica se começa com essas palavras
+                            mask |= coluna_categoria_normalizada.str.startswith("fundo", na=False)
+                            mask |= coluna_categoria_normalizada.str.startswith("investidor", na=False)
+                            # Match exato para variações
+                            mask |= coluna_categoria_normalizada == "fundos e investidores"
+                            mask |= coluna_categoria_normalizada == "fundo e investidor"
+                            mask |= coluna_categoria_normalizada == "fundos e investidor"
+                            mask |= coluna_categoria_normalizada == "fundo e investidores"
+                        
+                        # Universidades e ICTs - busca mais inclusiva
+                        if "universidade" in cat_filtro_str or "ict" in cat_filtro_str:
+                            # Captura qualquer registro que tenha "universidade" OU "ict"
+                            mask |= coluna_categoria_normalizada.str.contains("universidade", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("ict", case=False, na=False, regex=False)
+                            # Match exato para variações
+                            mask |= coluna_categoria_normalizada == "ict"
+                            mask |= coluna_categoria_normalizada == "universidade"
+                            mask |= coluna_categoria_normalizada == "universidade/ict"
+                            mask |= coluna_categoria_normalizada == "universidade / ict"
+                            mask |= coluna_categoria_normalizada == "universidades e icts"
+                            mask |= coluna_categoria_normalizada == "universidades e ict"
+                            mask |= coluna_categoria_normalizada == "universidades e icts"
+                            # Busca por qualquer combinação
+                            mask |= (coluna_categoria_normalizada.str.contains("universidade", case=False, na=False, regex=False) |
+                                    coluna_categoria_normalizada.str.contains("ict", case=False, na=False, regex=False))
+                        
+                        # Órgãos Públicos e Apoio - busca mais inclusiva
+                        if "órgão" in cat_filtro_str or "orgao" in cat_filtro_str or "apoio" in cat_filtro_str or "publico" in cat_filtro_str:
+                            # Captura qualquer registro que tenha "orgao" OU "publico" OU "apoio"
+                            # Mais inclusivo: se tem qualquer um desses termos, captura
+                            mask |= coluna_categoria_normalizada.str.contains("orgao", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("publico", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("apoio", case=False, na=False, regex=False)
+                            # Match exato para variações
+                            mask |= coluna_categoria_normalizada == "órgão público"
+                            mask |= coluna_categoria_normalizada == "orgao publico"
+                            mask |= coluna_categoria_normalizada == "órgão de apoio"
+                            mask |= coluna_categoria_normalizada == "orgao de apoio"
+                            mask |= coluna_categoria_normalizada == "órgãos públicos e apoio"
+                            mask |= coluna_categoria_normalizada == "orgaos publicos e apoio"
+                            mask |= coluna_categoria_normalizada == "órgãos públicos"
+                            mask |= coluna_categoria_normalizada == "orgaos publicos"
+                            # Busca mais ampla: qualquer combinação
+                            mask |= (coluna_categoria_normalizada.str.contains("orgao", case=False, na=False, regex=False) |
+                                    coluna_categoria_normalizada.str.contains("publico", case=False, na=False, regex=False) |
+                                    coluna_categoria_normalizada.str.contains("apoio", case=False, na=False, regex=False))
+                        
+                        # Hubs, Incubadoras e Parques Tecnológicos
+                        if "hub" in cat_filtro_str or "incubadora" in cat_filtro_str or "parque" in cat_filtro_str:
+                            mask |= coluna_categoria_normalizada.str.contains("hub", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("incubadora", case=False, na=False, regex=False)
+                            mask |= coluna_categoria_normalizada.str.contains("parque", case=False, na=False, regex=False)
                     
-                    # Remove duplicatas mantendo a ordem
-                    categorias_mapeadas = list(dict.fromkeys(categorias_mapeadas))
+                    # DEBUG: Mostra quantos registros foram encontrados pela máscara
+                    total_encontrados_mask = mask.sum()
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Registros encontrados pela máscara: {total_encontrados_mask}")
+                        
+                        # DEBUG: Mostra quais valores na coluna correspondem às categorias filtradas
+                        if total_encontrados_mask > 0:
+                            valores_encontrados = df_startups_para_tabela[mask][coluna_categoria_startups].astype(str).str.strip().value_counts()
+                            st.info(f"🔍 DEBUG: Valores encontrados na coluna que correspondem ao filtro:")
+                            for valor, qtd in valores_encontrados.head(20).items():
+                                st.text(f"   • '{valor}': {qtd}")
+                            if len(valores_encontrados) > 20:
+                                st.text(f"   ... e mais {len(valores_encontrados) - 20} valores")
                     
+                    # Aplica o filtro
+                    df_startups_para_tabela = df_startups_para_tabela[mask].copy()
+                    
+                    # DEBUG: Mostra total depois do filtro de categoria
+                    total_depois_categoria = len(df_startups_para_tabela)
+                    perdidos_categoria = total_antes_categoria - total_depois_categoria
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Registros depois do filtro de categoria: {total_depois_categoria} (perdidos: {perdidos_categoria})")
+                        
+                        # DEBUG: Mostra quantidade total por categoria DEPOIS do filtro
+                        if total_depois_categoria > 0:
+                            contagem_por_categoria_depois = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().value_counts()
+                            st.info(f"🔍 DEBUG: Quantidade total por categoria DEPOIS do filtro:")
+                            for cat, qtd in contagem_por_categoria_depois.head(15).items():
+                                st.text(f"   • {cat}: {qtd}")
+                            if len(contagem_por_categoria_depois) > 15:
+                                st.text(f"   ... e mais {len(contagem_por_categoria_depois) - 15} categorias")
+                    
+                    # DEBUG: Se não encontrou registros, mostra mais detalhes
+                    if total_depois_categoria == 0 and total_antes_categoria > 0:
+                        with st.sidebar:
+                            st.warning(f"⚠️ DEBUG: Nenhum registro encontrado! Verificando valores normalizados...")
+                            # Mostra valores únicos normalizados da coluna de categoria
+                            valores_unicos_normalizados = df_startups_filtered[coluna_categoria_startups].astype(str).str.strip().str.lower().unique() if coluna_categoria_startups in df_startups_filtered.columns else []
+                            st.info(f"🔍 DEBUG: Valores normalizados (lowercase) na coluna: {sorted(valores_unicos_normalizados)[:20]}")
+                            st.info(f"🔍 DEBUG: Categorias filtradas (normalizadas): {[str(c).strip().lower() for c in categorias_filtro_tabela]}")
+                            
+                            # Testa matching manual para cada categoria
+                            for cat_filtro in categorias_filtro_tabela:
+                                cat_filtro_str = str(cat_filtro).strip().lower()
+                                coluna_normalizada = df_startups_filtered[coluna_categoria_startups].astype(str).str.strip().str.lower()
+                                
+                                # Testa match exato
+                                matches_exato = coluna_normalizada == cat_filtro_str
+                                total_matches_exato = matches_exato.sum()
+                                st.info(f"🔍 DEBUG: '{cat_filtro}' -> {total_matches_exato} matches (exato)")
+                                
+                                # Testa contains
+                                matches = coluna_normalizada.str.contains(cat_filtro_str, case=False, na=False, regex=False)
+                                total_matches = matches.sum()
+                                st.info(f"🔍 DEBUG: '{cat_filtro}' -> {total_matches} matches (contains)")
+                                
+                                # Mostra quais valores na coluna contêm essa categoria
+                                valores_com_match = df_startups_filtered[coluna_categoria_startups][matches].astype(str).str.strip().value_counts()
+                                if len(valores_com_match) > 0:
+                                    st.info(f"🔍 DEBUG: Valores encontrados para '{cat_filtro}':")
+                                    for valor, qtd in valores_com_match.head(10).items():
+                                        st.text(f"   • '{valor}': {qtd}")
+                                    if len(valores_com_match) > 10:
+                                        st.text(f"   ... e mais {len(valores_com_match) - 10} valores")
+                else:
+                    with st.sidebar:
+                        st.warning(f"⚠️ DEBUG: Coluna de categoria não encontrada! Colunas disponíveis: {list(df_startups_para_tabela.columns)[:10]}")
+        
+        # DEBUG: Mostra total antes do filtro de segmentos
+        total_antes_segmentos = len(df_startups_para_tabela)
+        if segmentos_filtro_tabela and len(segmentos_filtro_tabela) > 0:
+            st.sidebar.info(f"🔍 DEBUG: Registros antes do filtro de segmentos: {total_antes_segmentos}")
+        
+        # Aplica filtro de segmentos (apenas para startups)
+        if segmentos_filtro_tabela and len(segmentos_filtro_tabela) > 0:
+            # Procura coluna de setor/segmento nas startups
+            coluna_setor_startups = None
+            possiveis_nomes_setor = ['setor', 'sector', 'segmento', 'segment', 'segmentos', 'setores']
+            for col in df_startups_para_tabela.columns:
+                col_lower = str(col).lower().strip()
+                if any(nome in col_lower for nome in possiveis_nomes_setor):
+                    coluna_setor_startups = col
+                    break
+            
+            if coluna_setor_startups:
+                # Procura coluna de categoria para filtrar apenas startups
+                coluna_categoria_startups = None
+                possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = str(col).lower().strip()
+                    if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
+                        coluna_categoria_startups = col
+                        break
+                
+                if coluna_categoria_startups:
+                    # Separa startups e outros atores
+                    mask_startup = df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().str.lower() == 'startup'
+                    df_startups_filtrado = df_startups_para_tabela[mask_startup].copy()
+                    df_outros_atores = df_startups_para_tabela[~mask_startup].copy()
+                    
+                    # Aplica filtro de segmentos apenas nas startups
+                    df_startups_filtrado = df_startups_filtrado[
+                        df_startups_filtrado[coluna_setor_startups].astype(str).str.strip().isin(
+                            [str(seg).strip() for seg in segmentos_filtro_tabela]
+                        )
+                    ]
+                    
+                    # Combina startups filtradas com outros atores (não afetados)
+                    df_startups_para_tabela = pd.concat([df_startups_filtrado, df_outros_atores], ignore_index=True)
+                    
+                    # DEBUG: Mostra total depois do filtro de segmentos
+                    total_depois_segmentos = len(df_startups_para_tabela)
+                    perdidos_segmentos = total_antes_segmentos - total_depois_segmentos
+                    with st.sidebar:
+                        st.info(f"🔍 DEBUG: Registros depois do filtro de segmentos: {total_depois_segmentos} (perdidos: {perdidos_segmentos})")
+                else:
+                    # Se não encontrou coluna de categoria, aplica filtro em todos (menos ideal)
                     df_startups_para_tabela = df_startups_para_tabela[
-                        df_startups_para_tabela[coluna_categoria_startups].astype(str).str.strip().isin(
-                            [str(cat).strip() for cat in categorias_mapeadas]
+                        df_startups_para_tabela[coluna_setor_startups].astype(str).str.strip().isin(
+                            [str(seg).strip() for seg in segmentos_filtro_tabela]
                         )
                     ]
         
@@ -2811,6 +4374,13 @@ def main():
         
         # Filtra os dados baseado na pesquisa
         df_tabela_filtrado = df_startups_para_tabela.copy()
+        
+        # DEBUG: Mostra total antes do filtro de texto
+        total_antes_texto = len(df_tabela_filtrado)
+        if texto_pesquisa and texto_pesquisa.strip():
+            with st.sidebar:
+                st.info(f"🔍 DEBUG: Registros antes do filtro de texto: {total_antes_texto}")
+        
         if texto_pesquisa and texto_pesquisa.strip():
             texto_busca = texto_pesquisa.strip()
             
@@ -2844,6 +4414,12 @@ def main():
                     regex=False
                 )
                 df_tabela_filtrado = df_tabela_filtrado[mask]
+                
+                # DEBUG: Mostra total depois do filtro de texto
+                total_depois_texto = len(df_tabela_filtrado)
+                perdidos_texto = total_antes_texto - total_depois_texto
+                with st.sidebar:
+                    st.info(f"🔍 DEBUG: Registros depois do filtro de texto: {total_depois_texto} (perdidos: {perdidos_texto})")
             else:
                 # Se não encontrou coluna de nome, tenta buscar em todas as colunas de texto
                 mask = pd.Series([False] * len(df_tabela_filtrado))
@@ -2856,19 +4432,28 @@ def main():
                             regex=False
                         )
                 df_tabela_filtrado = df_tabela_filtrado[mask]
+                
+                # DEBUG: Mostra total depois do filtro de texto
+                total_depois_texto = len(df_tabela_filtrado)
+                perdidos_texto = total_antes_texto - total_depois_texto
+                with st.sidebar:
+                    st.info(f"🔍 DEBUG: Registros depois do filtro de texto: {total_depois_texto} (perdidos: {perdidos_texto})")
+        
+        # DEBUG: Mostra total final e compara com o esperado
+        total_final = len(df_tabela_filtrado)
+        total_esperado = 5140
+        diferenca = total_esperado - total_final
+        with st.sidebar:
+            if diferenca > 0:
+                st.warning(f"⚠️ DEBUG: Total final: {total_final} (esperado: {total_esperado}, faltam: {diferenca})")
+            else:
+                st.success(f"✅ DEBUG: Total final de registros na tabela: {total_final}")
         
         # Tabela de dados (usa dados filtrados)
         create_data_table(df_tabela_filtrado)
     
     
     # Footer
-    st.markdown("---")
-    st.markdown("""
-    <div style='text-align: center; color: #666;'>
-        <p>🚀 Dashboard Interativo do Ecossistema de Inovação de Minas Gerais</p>
-        <p>Desenvolvido com Streamlit</p>
-    </div>
-    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
