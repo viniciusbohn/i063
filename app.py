@@ -993,32 +993,57 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         sheet_id = "104LamJgsPmwAldSBUOSsAHfXo4m356by44VnGgk2avk"
         
         # Método 1: Tenta com a URL de export CSV direta usando o nome da aba
+        # IMPORTANTE: Não usa skiprows ou header para não pular linhas válidas
         try:
             encoded_sheet_name = quote(sheet_name, safe="")
             sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
             # Tenta diferentes encodings para resolver problemas com caracteres especiais
+            # IMPORTANTE: header=None inicialmente para não perder a primeira linha
             try:
-                df = pd.read_csv(sheet_url, encoding='utf-8')
+                df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
             except:
                 try:
-                    df = pd.read_csv(sheet_url, encoding='latin-1')
+                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
                 except:
-                    df = pd.read_csv(sheet_url, encoding='iso-8859-1')
+                    df = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
         except:
             # Método 2: Tenta com export direto (pode pegar a primeira aba)
             try:
                 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
                 try:
-                    df = pd.read_csv(sheet_url, encoding='utf-8')
+                    df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
                 except:
-                    df = pd.read_csv(sheet_url, encoding='latin-1')
+                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
             except:
                 # Método 3: Tenta com gid=0 (primeira aba)
                 sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
                 try:
-                    df = pd.read_csv(sheet_url, encoding='utf-8')
+                    df = pd.read_csv(sheet_url, encoding='utf-8', header=None)
                 except:
-                    df = pd.read_csv(sheet_url, encoding='latin-1')
+                    df = pd.read_csv(sheet_url, encoding='latin-1', header=None)
+        
+        # CORREÇÃO: Se leu sem header, precisa identificar onde está o cabeçalho real
+        # Verifica se a primeira linha parece ser um cabeçalho
+        if len(df) > 0 and isinstance(df.columns[0], int):  # Se as colunas são numéricas, não tinha header
+            primeira_linha = df.iloc[0].astype(str).tolist() if len(df) > 0 else []
+            primeira_linha_str = ' '.join(primeira_linha).lower()
+            
+            # Se a primeira linha parece ser um cabeçalho (contém palavras-chave)
+            if any(palavra in primeira_linha_str for palavra in ['nome', 'name', 'categoria', 'category', 'ator', 'actor', 'cidade', 'city']):
+                # A primeira linha é o cabeçalho - usa ela como nomes das colunas
+                df.columns = df.iloc[0]
+                df = df.iloc[1:].reset_index(drop=True)
+            else:
+                # Se não parece ser cabeçalho, define nomes padrão
+                if sheet_name == "Base | Atores MG":
+                    num_cols = len(df.columns)
+                    expected_cols = ['Nome do Ator', 'Categoria', 'Cidade', 'Regiao Sebrae', 'Site', 
+                                   'Descrição Resumida', 'Setor', 'Tags', 'Ano de Fundação', 
+                                   'Tamanho da Equipe', 'Marco Legal', 'Relação com Beta-i']
+                    while len(expected_cols) < num_cols:
+                        expected_cols.append(f'Coluna {len(expected_cols) + 1}')
+                    expected_cols = expected_cols[:num_cols]
+                    df.columns = expected_cols
         
         # CORREÇÃO: Verifica se os nomes das colunas estão concatenados com dados
         # Se a primeira coluna tem um nome muito longo (mais de 50 caracteres), provavelmente está concatenado
