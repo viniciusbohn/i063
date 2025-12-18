@@ -1185,7 +1185,7 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         except Exception as e:
             st.warning(f"⚠️ Erro no método 1: {str(e)}")
         
-        # Método 2: Tenta com export direto (pode pegar a primeira aba)
+            # Método 2: Tenta com export direto (pode pegar a primeira aba)
         if df is None or len(df) < 2000:
             try:
                 sid = sheet_id_env or (sheet_id_candidates[0] if sheet_id_candidates else "")
@@ -1200,7 +1200,7 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                         df_temp = pd.read_csv(sheet_url, encoding='latin-1', header=None)
                         if df is None or len(df_temp) > len(df):
                             df = df_temp
-                    except:
+            except:
                         pass
             except Exception as e:
                 st.warning(f"⚠️ Erro no método 2: {str(e)}")
@@ -2181,7 +2181,7 @@ def create_choropleth_map(df, df_atores=None):
                 break
         
         if not coluna_regiao:
-            return
+        return
 
     if not coluna_municipio:
         st.error("❌ Coluna de município não encontrada na planilha.")
@@ -2304,10 +2304,10 @@ def create_choropleth_map(df, df_atores=None):
     
     # Normaliza código IBGE se existir
     if coluna_codigo_ibge in df_map.columns:
-        df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
-        # Remove linhas com código IBGE inválido
-        df_map = df_map[df_map[coluna_codigo_ibge].notna()]
-        df_map[coluna_codigo_ibge] = df_map[coluna_codigo_ibge].astype(str)  # Garante que seja string
+    df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
+    # Remove linhas com código IBGE inválido
+    df_map = df_map[df_map[coluna_codigo_ibge].notna()]
+    df_map[coluna_codigo_ibge] = df_map[coluna_codigo_ibge].astype(str)  # Garante que seja string
     else:
         st.error("❌ Não foi possível obter códigos IBGE para os municípios.")
         return
@@ -2930,44 +2930,15 @@ def create_choropleth_map(df, df_atores=None):
         # Calcula totais baseado nos dados filtrados do mapa (que já têm filtros de região e município aplicados)
         contadores = {}
         
-        # Startups - calcula diretamente dos atores (garante filtro por cidade preenchida)
-        if df_atores is not None and not df_atores.empty:
-            # Procura colunas nos dados de atores
-            coluna_categoria_atores = None
-            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
-            for col in df_atores.columns:
-                col_lower = str(col).lower().strip()
-                if any(nome.lower() in col_lower for nome in possiveis_nomes_categoria):
-                    coluna_categoria_atores = col
-                    break
-            
-            coluna_cidade_atores = None
-            possiveis_nomes_cidade = ['cidade', 'municipio', 'município', 'city']
-            for col in df_atores.columns:
-                col_lower = str(col).lower().strip()
-                if any(nome.lower() in col_lower for nome in possiveis_nomes_cidade):
-                    coluna_cidade_atores = col
-                    break
-            
-            if coluna_categoria_atores and coluna_cidade_atores:
-                # Conta apenas startups com cidade preenchida
-                df_startups_com_cidade = df_atores[
-                    (df_atores[coluna_categoria_atores].astype(str).str.strip().str.lower() == 'startup') &
-                    (df_atores[coluna_cidade_atores].notna()) &
-                    (df_atores[coluna_cidade_atores].astype(str).str.strip() != '') &
-                    (df_atores[coluna_cidade_atores].astype(str).str.strip() != 'nan')
-                ]
-                contadores["Startups"] = len(df_startups_com_cidade)
-            else:
-                # Fallback: usa dados agregados do mapa se não conseguir calcular dos atores
-                if coluna_qtd_startups in df_regions_filtrado.columns:
-                    total_startups = pd.to_numeric(df_regions_filtrado[coluna_qtd_startups], errors='coerce').fillna(0).sum()
-                    contadores["Startups"] = int(total_startups)
-                else:
-                    contadores["Startups"] = 0
-        elif coluna_qtd_startups in df_regions_filtrado.columns:
-            # Fallback: usa dados agregados do mapa se não houver dados de atores
-            total_startups = pd.to_numeric(df_regions_filtrado[coluna_qtd_startups], errors='coerce').fillna(0).sum()
+        # Startups - usa dados agregados do mapa (RESPEITA filtros de região/município/segmentos)
+        # (mantém consistência com as outras categorias)
+        if 'qtd_startups_temp_filtrado' in df_regions_filtrado.columns:
+            col_startups_total = 'qtd_startups_temp_filtrado'
+        else:
+            col_startups_total = coluna_qtd_startups
+
+        if col_startups_total in df_regions_filtrado.columns:
+            total_startups = pd.to_numeric(df_regions_filtrado[col_startups_total], errors='coerce').fillna(0).sum()
             contadores["Startups"] = int(total_startups)
         else:
             contadores["Startups"] = 0
@@ -4701,51 +4672,51 @@ def main():
         
         # Aplica filtro de região
         if regiao_filtro_tabela != "Todas":
-            # Procura coluna de região nas startups (com várias variações)
-            coluna_regiao_startups = None
-            possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
-                                     'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome in col_lower for nome in possiveis_nomes_regiao):
-                    coluna_regiao_startups = col
-                    break
-            
-            if coluna_regiao_startups:
-                df_startups_para_tabela = df_startups_para_tabela[
-                    df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
-                ]
+                # Procura coluna de região nas startups (com várias variações)
+                coluna_regiao_startups = None
+                possiveis_nomes_regiao = ['região sebrae', 'regiao sebrae', 'região_sebrae', 'regiao_sebrae', 
+                                         'nome_mesorregiao', 'mesorregiao', 'regiao', 'região']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome in col_lower for nome in possiveis_nomes_regiao):
+                        coluna_regiao_startups = col
+                        break
+                
+                if coluna_regiao_startups:
+                    df_startups_para_tabela = df_startups_para_tabela[
+                        df_startups_para_tabela[coluna_regiao_startups].astype(str).str.strip() == regiao_filtro_tabela
+                    ]
         
         # Aplica filtro de município
         if municipio_filtro_tabela != "Todos":
-            # Procura coluna de município/cidade nas startups
-            coluna_municipio_startups = None
-            possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome in col_lower for nome in possiveis_nomes_municipio):
-                    coluna_municipio_startups = col
-                    break
-            
-            if coluna_municipio_startups:
-                df_startups_para_tabela = df_startups_para_tabela[
-                    df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
-                ]
+                # Procura coluna de município/cidade nas startups
+                coluna_municipio_startups = None
+                possiveis_nomes_municipio = ['cidade', 'municipio', 'cidade_max', 'município']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome in col_lower for nome in possiveis_nomes_municipio):
+                        coluna_municipio_startups = col
+                        break
+                
+                if coluna_municipio_startups:
+                    df_startups_para_tabela = df_startups_para_tabela[
+                        df_startups_para_tabela[coluna_municipio_startups].astype(str).str.strip() == municipio_filtro_tabela
+                    ]
         
         # Aplica filtro de categoria
         # IMPORTANTE: Se não há filtros de categoria selecionados, mostra TODOS os dados (não aplica filtro)
         if categorias_filtro_tabela and len(categorias_filtro_tabela) > 0:
             # Há filtros de categoria selecionados - aplica o filtro
-            # Procura coluna de categoria nas startups
-            coluna_categoria_startups = None
-            possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
-            for col in df_startups_para_tabela.columns:
-                col_lower = col.lower().strip()
-                if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
-                    coluna_categoria_startups = col
-                    break
-            
-            if coluna_categoria_startups:
+                # Procura coluna de categoria nas startups
+                coluna_categoria_startups = None
+                possiveis_nomes_categoria = ['categoria', 'category', 'tipo', 'type', 'tipo_ator', 'actor_type']
+                for col in df_startups_para_tabela.columns:
+                    col_lower = col.lower().strip()
+                    if any(nome == col_lower or nome in col_lower for nome in possiveis_nomes_categoria):
+                        coluna_categoria_startups = col
+                        break
+                
+                if coluna_categoria_startups:
                     # Mapeia nomes do filtro do mapa para valores reais na planilha
                     # Cada filtro do mapa mapeia para as categorias específicas que devem aparecer na tabela
                     mapeamento_categorias = {
@@ -4795,8 +4766,8 @@ def main():
                     
                     # Cria lista de valores possíveis baseado no mapeamento
                     valores_possiveis = set()
-                    for cat_filtro in categorias_filtro_tabela:
-                        cat_filtro_str = str(cat_filtro).strip().lower()
+                            for cat_filtro in categorias_filtro_tabela:
+                                cat_filtro_str = str(cat_filtro).strip().lower()
                         
                         # Adiciona valores mapeados se existirem
                         if cat_filtro_str in mapeamento_categorias:
