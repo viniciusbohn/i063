@@ -1182,8 +1182,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                     break
             if df is None and last_err is not None:
                 raise last_err
-        except Exception as e:
-            st.warning(f"⚠️ Erro no método 1: {str(e)}")
+        except Exception:
+            # Silencioso: métodos alternativos podem falhar (ex.: 400/404) e isso não deve poluir a UI.
+            pass
         
         # Método 2: Tenta com export direto (pode pegar a primeira aba)
         if df is None or len(df) < 2000:
@@ -1201,8 +1202,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
 
                 if df is None or len(df_temp) > len(df):
                     df = df_temp
-            except Exception as e:
-                st.warning(f"⚠️ Erro no método 2: {str(e)}")
+            except Exception:
+                # Silencioso: métodos alternativos podem falhar (ex.: 400/404) e isso não deve poluir a UI.
+                pass
         
         # Método 3: Tenta com export direto sem gid
         if df is None or len(df) < 2000:
@@ -1221,8 +1223,9 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                             df = df_temp
                     except:
                         pass
-            except Exception as e:
-                st.warning(f"⚠️ Erro no método 3: {str(e)}")
+            except Exception:
+                # Silencioso: métodos alternativos podem falhar (ex.: 400/404) e isso não deve poluir a UI.
+                pass
         
         # Verifica se conseguiu carregar dados
         if df is None:
