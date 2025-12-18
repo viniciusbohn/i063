@@ -4747,8 +4747,8 @@ def main():
                     
                     # Cria lista de valores possíveis baseado no mapeamento
                     valores_possiveis = set()
-                            for cat_filtro in categorias_filtro_tabela:
-                                cat_filtro_str = str(cat_filtro).strip().lower()
+                    for cat_filtro in categorias_filtro_tabela:
+                        cat_filtro_str = str(cat_filtro).strip().lower()
                         
                         # Adiciona valores mapeados se existirem
                         if cat_filtro_str in mapeamento_categorias:
