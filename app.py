@@ -1185,7 +1185,7 @@ def load_data_from_sheets(sheet_name, force_reload=False):
         except Exception as e:
             st.warning(f"⚠️ Erro no método 1: {str(e)}")
         
-            # Método 2: Tenta com export direto (pode pegar a primeira aba)
+        # Método 2: Tenta com export direto (pode pegar a primeira aba)
         if df is None or len(df) < 2000:
             try:
                 sid = sheet_id_env or (sheet_id_candidates[0] if sheet_id_candidates else "")
@@ -1193,15 +1193,14 @@ def load_data_from_sheets(sheet_name, force_reload=False):
                 sheet_url_used = sheet_url
                 try:
                     df_temp = pd.read_csv(sheet_url, encoding='utf-8', header=None)
-                    if df is None or len(df_temp) > len(df):
-                        df = df_temp
-                except:
+                except Exception:
                     try:
                         df_temp = pd.read_csv(sheet_url, encoding='latin-1', header=None)
-                        if df is None or len(df_temp) > len(df):
-                            df = df_temp
-            except:
-                        pass
+                    except Exception:
+                        df_temp = pd.read_csv(sheet_url, encoding='iso-8859-1', header=None)
+
+                if df is None or len(df_temp) > len(df):
+                    df = df_temp
             except Exception as e:
                 st.warning(f"⚠️ Erro no método 2: {str(e)}")
         
