@@ -2301,26 +2301,8 @@ def create_choropleth_map(df, df_atores=None):
         suffixes=('', '_planilha')
     )
     
-    # Normaliza código IBGE se existir
-    if coluna_codigo_ibge in df_map.columns:
-    df_map[coluna_codigo_ibge] = normalize_codigo_ibge(df_map[coluna_codigo_ibge])
-    # Remove linhas com código IBGE inválido
-    df_map = df_map[df_map[coluna_codigo_ibge].notna()]
-    df_map[coluna_codigo_ibge] = df_map[coluna_codigo_ibge].astype(str)  # Garante que seja string
-    else:
-        st.error("❌ Não foi possível obter códigos IBGE para os municípios.")
-        return
-    df_map[coluna_qtd_startups] = pd.to_numeric(df_map[coluna_qtd_startups], errors='coerce').fillna(0).astype(int)
-    if coluna_qtd_empresas_ancora in df_map.columns:
-        df_map[coluna_qtd_empresas_ancora] = pd.to_numeric(df_map[coluna_qtd_empresas_ancora], errors='coerce').fillna(0).astype(int)
-    if coluna_qtd_fundos_e_investidores in df_map.columns:
-        df_map[coluna_qtd_fundos_e_investidores] = pd.to_numeric(df_map[coluna_qtd_fundos_e_investidores], errors='coerce').fillna(0).astype(int)
-    if coluna_qtd_universidades_icts in df_map.columns:
-        df_map[coluna_qtd_universidades_icts] = pd.to_numeric(df_map[coluna_qtd_universidades_icts], errors='coerce').fillna(0).astype(int)
-    if coluna_qtd_orgaos in df_map.columns:
-        df_map[coluna_qtd_orgaos] = pd.to_numeric(df_map[coluna_qtd_orgaos], errors='coerce').fillna(0).astype(int)
-    if coluna_qtd_hubs_incubadoras_parquestecnologicos in df_map.columns:
-        df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos] = pd.to_numeric(df_map[coluna_qtd_hubs_incubadoras_parquestecnologicos], errors='coerce').fillna(0).astype(int)
+    # (bloco de normalização de df_map removido daqui)
+    # Observação: df_map já é normalizado/convertido para numérico antes do merge.
 
     # df_municipios já foi carregado acima
 
