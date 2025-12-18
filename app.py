@@ -2180,7 +2180,7 @@ def create_choropleth_map(df, df_atores=None):
                 break
         
         if not coluna_regiao:
-        return
+            return
 
     if not coluna_municipio:
         st.error("❌ Coluna de município não encontrada na planilha.")
